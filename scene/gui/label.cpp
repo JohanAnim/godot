@@ -722,7 +722,9 @@ void Label::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_STATIC_TEXT);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, get_accessibility_default_role());
+			}
 			AccessibilityServer::get_singleton()->update_set_value(ae, xl_text);
 			AccessibilityServer::get_singleton()->update_set_text_align(ae, horizontal_alignment);
 		} break;
@@ -1424,6 +1426,10 @@ int Label::get_max_lines_visible() const {
 
 int Label::get_total_character_count() const {
 	return xl_text.length();
+}
+
+AccessibilityServerEnums::AccessibilityRole Label::get_accessibility_default_role() const {
+	return AccessibilityServerEnums::AccessibilityRole::ROLE_STATIC_TEXT;
 }
 
 void Label::_bind_methods() {

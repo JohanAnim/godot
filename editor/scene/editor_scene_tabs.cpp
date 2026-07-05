@@ -438,6 +438,10 @@ int EditorSceneTabs::get_current_tab() const {
 	return scene_tabs->get_current_tab();
 }
 
+void EditorSceneTabs::grab_focus() {
+	scene_tabs->grab_focus();
+}
+
 void EditorSceneTabs::_project_settings_changed() {
 	if (ProjectSettings::get_singleton()->check_changed_settings_in_group("application/run/main_scene")) {
 		update_scene_tabs();

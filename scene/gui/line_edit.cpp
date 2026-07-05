@@ -1246,7 +1246,9 @@ void LineEdit::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_TEXT_FIELD);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, get_accessibility_default_role());
+			}
 			bool using_placeholder = text.is_empty() && ime_text.is_empty();
 			if (using_placeholder && !placeholder.is_empty()) {
 				AccessibilityServer::get_singleton()->update_set_placeholder(ae, atr(placeholder));
@@ -3334,6 +3336,13 @@ void LineEdit::_validate_property(PropertyInfo &p_property) const {
 	} else if (icon_expand_mode != EXPAND_MODE_FIT_TO_LINE_EDIT && p_property.name == "right_icon_scale") {
 		p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 	}
+}
+
+AccessibilityServerEnums::AccessibilityRole LineEdit::get_accessibility_default_role() const {
+	if (pass) {
+		return AccessibilityServerEnums::AccessibilityRole::ROLE_PASSWORD_INPUT;
+	}
+	return AccessibilityServerEnums::AccessibilityRole::ROLE_TEXT_FIELD;
 }
 
 void LineEdit::_bind_methods() {

@@ -2176,15 +2176,25 @@ void EditorInspectorSection::_notification(int p_what) {
 							prologue += custom_description;
 						}
 					}
-					AccessibilityServer::get_singleton()->update_set_description(ae, EditorHelpBit::get_as_plain_text(symbol, prologue));
+					String desc = EditorHelpBit::get_as_plain_text(symbol, prologue);
+					desc += "\n" + TTR("Press Shift+Enter or Shift+Space to toggle this section on/off.");
+					AccessibilityServer::get_singleton()->update_set_description(ae, desc);
 				} else {
 					AccessibilityServer::get_singleton()->update_set_description(ae, tooltip);
 				}
+			} else if (checkable) {
+				AccessibilityServer::get_singleton()->update_set_description(ae, TTR("Press Shift+Enter or Shift+Space to toggle this section on/off."));
 			}
 
 			AccessibilityServer::get_singleton()->update_set_name(ae, vformat(TTR("Section: %s"), label));
+			AccessibilityServer::get_singleton()->update_set_list_item_expanded(ae, vbox && vbox->is_visible());
 			AccessibilityServer::get_singleton()->update_add_action(ae, AccessibilityServerEnums::AccessibilityAction::ACTION_COLLAPSE, callable_mp(this, &EditorInspectorSection::_accessibility_action_collapse));
 			AccessibilityServer::get_singleton()->update_add_action(ae, AccessibilityServerEnums::AccessibilityAction::ACTION_EXPAND, callable_mp(this, &EditorInspectorSection::_accessibility_action_expand));
+
+			if (checkable) {
+				AccessibilityServer::get_singleton()->update_set_checked_state(ae, checked ? 2 : 1);
+				AccessibilityServer::get_singleton()->update_add_action(ae, AccessibilityServerEnums::AccessibilityAction::ACTION_CLICK, callable_mp(this, &EditorInspectorSection::_accessibility_action_toggle));
+			}
 		} break;
 
 		case NOTIFICATION_THEME_CHANGED: {
@@ -2585,7 +2595,18 @@ void EditorInspectorSection::gui_input(const Ref<InputEvent> &p_event) {
 
 	Ref<InputEventKey> k = p_event;
 	if (k.is_valid() && k->is_pressed()) {
-		if (foldable && can_click_unfold && k->is_action("ui_accept", true)) {
+		if (checkable && k->is_action("ui_accept", false) && k->is_shift_pressed()) {
+			accept_event();
+			checked = !checked;
+			emit_signal(SNAME("section_toggled_by_user"), related_enable_property, checked);
+			if (checked) {
+				unfold();
+			} else if (!checkbox_only) {
+				vbox->hide();
+				queue_redraw();
+			}
+			queue_accessibility_update();
+		} else if (foldable && can_click_unfold && k->is_action("ui_accept", true)) {
 			accept_event();
 
 			bool should_unfold = !object->editor_is_section_unfolded(section);
@@ -2658,7 +2679,25 @@ void EditorInspectorSection::_accessibility_action_collapse(const Variant &p_dat
 }
 
 void EditorInspectorSection::_accessibility_action_expand(const Variant &p_data) {
+	if (checkable && !checked) {
+		checked = true;
+		emit_signal(SNAME("section_toggled_by_user"), related_enable_property, checked);
+	}
 	unfold();
+}
+
+void EditorInspectorSection::_accessibility_action_toggle(const Variant &p_data) {
+	if (checkable) {
+		checked = !checked;
+		emit_signal(SNAME("section_toggled_by_user"), related_enable_property, checked);
+		if (checked) {
+			unfold();
+		} else if (!checkbox_only) {
+			vbox->hide();
+			queue_redraw();
+		}
+		queue_accessibility_update();
+	}
 }
 
 void EditorInspectorSection::unfold() {

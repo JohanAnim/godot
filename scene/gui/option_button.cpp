@@ -74,14 +74,43 @@ Size2 OptionButton::get_minimum_size() const {
 	return minsize;
 }
 
+AccessibilityServerEnums::AccessibilityRole OptionButton::get_accessibility_default_role() const {
+	return AccessibilityServerEnums::AccessibilityRole::ROLE_COMBO_BOX;
+}
+
 void OptionButton::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ACCESSIBILITY_UPDATE: {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_BUTTON);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, get_accessibility_default_role());
+			}
 			AccessibilityServer::get_singleton()->update_set_popup_type(ae, AccessibilityServerEnums::AccessibilityPopupType::POPUP_LIST);
+
+			// ComboBox properties.
+			AccessibilityServer::get_singleton()->update_set_list_item_count(ae, get_item_count());
+			AccessibilityServer::get_singleton()->update_set_list_item_index(ae, current);
+
+			// Set the selected item text as the value (translated).
+			if (current >= 0 && current < get_item_count()) {
+				AccessibilityServer::get_singleton()->update_set_value(ae, popup->get_item_xl_text(current));
+			}
+
+			bool is_open = popup && popup->is_visible();
+			// 0 = none, 1 = collapsed (false), 2 = expanded (true)
+			AccessibilityServer::get_singleton()->update_set_expanded(ae, is_open ? 2 : 1);
+			AccessibilityServer::get_singleton()->update_set_state_description(ae, is_open ? TTR("expanded") : TTR("collapsed"));
+
+			if (popup && popup->get_accessibility_element().is_valid()) {
+				if (is_open) {
+					popup->set_accessibility_name(get_text());
+					AccessibilityServer::get_singleton()->element_set_parent(popup->get_accessibility_element(), ae);
+				} else {
+					AccessibilityServer::get_singleton()->element_set_parent(popup->get_accessibility_element(), RID());
+				}
+			}
 		} break;
 
 		case NOTIFICATION_POSTINITIALIZE: {
@@ -563,7 +592,7 @@ void OptionButton::show_popup() {
 		}
 	} else {
 		for (int i = 0; i < popup->get_item_count(); i++) {
-			if (!popup->is_item_disabled(i)) {
+			if (!popup->is_item_disabled(i) && !popup->is_item_separator(i) && popup->is_item_visible(i)) {
 				if (!_was_pressed_by_mouse()) {
 					popup->set_focused_item(i);
 				} else {
@@ -583,7 +612,9 @@ void OptionButton::show_popup() {
 	}
 	rect.size.height = 0;
 	popup->set_min_size(Size2(0, 0));
+	popup->activated_by_keyboard = !_was_pressed_by_mouse();
 	popup->popup(rect);
+	queue_accessibility_update();
 }
 
 void OptionButton::_validate_property(PropertyInfo &p_property) const {
@@ -711,6 +742,8 @@ OptionButton::OptionButton(const String &p_text) :
 	popup->connect("index_pressed", callable_mp(this, &OptionButton::_selected));
 	popup->connect("id_focused", callable_mp(this, &OptionButton::_focused));
 	popup->connect("popup_hide", callable_mp((BaseButton *)this, &BaseButton::set_pressed).bind(false));
+	popup->connect("popup_hide", callable_mp((Node *)this, &Node::queue_accessibility_update));
+	popup->connect("about_to_popup", callable_mp((Node *)this, &Node::queue_accessibility_update));
 
 	property_helper.setup_for_instance(base_property_helper, this);
 }

@@ -1906,7 +1906,7 @@ void Node3DEditorViewport::_surface_mouse_enter() {
 		return;
 	}
 
-	if (!surface->has_focus() && (!get_viewport()->gui_get_focus_owner() || !get_viewport()->gui_get_focus_owner()->is_text_field())) {
+	if (!surface->has_focus() && (!get_viewport()->gui_get_focus_owner() || (!get_viewport()->gui_get_focus_owner()->is_text_field() && !EditorNode::get_singleton()->is_focus_restore_candidate(get_viewport()->gui_get_focus_owner())))) {
 		surface->grab_focus();
 	}
 }

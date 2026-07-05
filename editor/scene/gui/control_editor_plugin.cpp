@@ -251,6 +251,8 @@ EditorPropertyAnchorsPreset::EditorPropertyAnchorsPreset() {
 	options->connect(SceneStringName(item_selected), callable_mp(this, &EditorPropertyAnchorsPreset::_option_selected));
 }
 
+// --------------------------------------------------------------------------
+
 void EditorPropertySizeFlags::_set_read_only(bool p_read_only) {
 	for (CheckBox *check : flag_checks) {
 		check->set_disabled(p_read_only);
@@ -495,6 +497,7 @@ bool EditorInspectorPluginControl::parse_property(Object *p_object, const Varian
 
 		return true;
 	}
+
 
 	return false;
 }

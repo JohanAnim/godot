@@ -83,6 +83,7 @@ void AcceptDialog::_notification(int p_what) {
 					parent_visible->disconnect(SceneStringName(focus_entered), callable_mp(this, &AcceptDialog::_parent_focused));
 					parent_visible = nullptr;
 				}
+				emit_signal(SNAME("popup_hide"));
 			}
 		} break;
 
@@ -434,6 +435,7 @@ void AcceptDialog::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("confirmed"));
 	ADD_SIGNAL(MethodInfo("canceled"));
 	ADD_SIGNAL(MethodInfo("custom_action", PropertyInfo(Variant::STRING_NAME, "action")));
+	ADD_SIGNAL(MethodInfo("popup_hide"));
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "ok_button_text"), "set_ok_button_text", "get_ok_button_text");
 

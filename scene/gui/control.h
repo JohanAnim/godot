@@ -302,6 +302,22 @@ private:
 
 		String accessibility_name;
 		String accessibility_description;
+		String accessibility_automation_id;
+		AccessibilityServerEnums::AccessibilityRole accessibility_role = AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN;
+		int accessibility_state_expanded = 0; // 0 = none, 1 = collapsed, 2 = expanded
+		int accessibility_state_selected = 0; // 0 = none, 1 = unselected, 2 = selected
+		int accessibility_state_checked = 0; // 0 = none, 1 = unchecked, 2 = checked, 3 = mixed
+		bool accessibility_state_disabled = false;
+		bool accessibility_state_readonly = false;
+		bool accessibility_state_hidden = false;
+		bool accessibility_state_busy = false;
+		bool accessibility_state_required = false;
+		bool accessibility_state_modal = false;
+		bool accessibility_state_haspopup = false;
+		bool accessibility_state_multiselectable = false;
+		bool accessibility_state_visited = false;
+		int accessibility_state_current = 0; // 0 = none, 1 = step, 2 = location, 3 = date, 4 = time, 5 = true
+		int accessibility_state_autocomplete = 0; // 0 = none, 1 = inline, 2 = list, 3 = both
 		AccessibilityServerEnums::AccessibilityLiveMode accessibility_live = AccessibilityServerEnums::AccessibilityLiveMode::LIVE_OFF;
 
 		TypedArray<NodePath> accessibility_controls_nodes;
@@ -452,6 +468,8 @@ protected:
 	void _accessibility_action_show_tooltip(const Variant &p_data);
 	void _accessibility_action_hide_tooltip(const Variant &p_data);
 	void _accessibility_action_scroll_into_view(const Variant &p_data);
+	void _accessibility_action_expand(const Variant &p_data);
+	void _accessibility_action_collapse(const Variant &p_data);
 
 #ifndef DISABLE_DEPRECATED
 	bool _has_focus_bind_compat_110250() const;
@@ -764,6 +782,56 @@ public:
 
 	void set_accessibility_flow_to_nodes(const TypedArray<NodePath> &p_node_path);
 	TypedArray<NodePath> get_accessibility_flow_to_nodes() const;
+
+	void set_accessibility_automation_id(const String &p_automation_id);
+	String get_accessibility_automation_id() const;
+
+	void set_accessibility_role(AccessibilityServerEnums::AccessibilityRole p_role);
+	AccessibilityServerEnums::AccessibilityRole get_accessibility_role() const;
+
+	virtual AccessibilityServerEnums::AccessibilityRole get_accessibility_default_role() const;
+
+	void set_accessibility_state_expanded(int p_expanded);
+	int get_accessibility_state_expanded() const;
+
+	void set_accessibility_state_selected(int p_selected);
+	int get_accessibility_state_selected() const;
+
+	void set_accessibility_state_checked(int p_checked);
+	int get_accessibility_state_checked() const;
+
+	void set_accessibility_state_disabled(bool p_disabled);
+	bool is_accessibility_state_disabled() const;
+
+	void set_accessibility_state_readonly(bool p_readonly);
+	bool is_accessibility_state_readonly() const;
+
+	void set_accessibility_state_hidden(bool p_hidden);
+	bool is_accessibility_state_hidden() const;
+
+	void set_accessibility_state_busy(bool p_busy);
+	bool is_accessibility_state_busy() const;
+
+	void set_accessibility_state_required(bool p_required);
+	bool is_accessibility_state_required() const;
+
+	void set_accessibility_state_modal(bool p_modal);
+	bool is_accessibility_state_modal() const;
+
+	void set_accessibility_state_haspopup(bool p_haspopup);
+	bool is_accessibility_state_haspopup() const;
+
+	void set_accessibility_state_multiselectable(bool p_multiselectable);
+	bool is_accessibility_state_multiselectable() const;
+
+	void set_accessibility_state_visited(bool p_visited);
+	bool is_accessibility_state_visited() const;
+
+	void set_accessibility_state_current(int p_current);
+	int get_accessibility_state_current() const;
+
+	void set_accessibility_state_autocomplete(int p_autocomplete);
+	int get_accessibility_state_autocomplete() const;
 
 	virtual Transform2D get_accessibility_transform() const override { return get_transform(); }
 

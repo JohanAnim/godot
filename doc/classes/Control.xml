@@ -1053,6 +1053,39 @@
 		<member name="accessibility_live" type="int" setter="set_accessibility_live" getter="get_accessibility_live" enum="AccessibilityServer.AccessibilityLiveMode" default="0">
 			The mode with which a live region updates. A live region is a [Node] that is updated as a result of an external event when the user's focus may be elsewhere.
 		</member>
+		<member name="accessibility_automation_id" type="String" setter="set_accessibility_automation_id" getter="get_accessibility_automation_id" default="&quot;&quot;">
+			The stable, unique identifier for the control. Used for UI automation and testing scripts. If not explicitly specified, defaults to the node's name.
+		</member>
+		<member name="accessibility_role" type="int" setter="set_accessibility_role" getter="get_accessibility_role" enum="AccessibilityServer.AccessibilityRole" default="0">
+			The role of the control reported to assistive tools (e.g. Button, Static Text, Tree Item). If set to Unknown, the control automatically chooses its native default role.
+		</member>
+		<member name="accessibility_state_expanded" type="int" setter="set_accessibility_state_expanded" getter="get_accessibility_state_expanded" default="0">
+			Exposes the expanded or collapsed state of this control to assistive technologies (0 = None, 1 = Collapsed, 2 = Expanded). Used for controls that toggle the visibility of other elements.
+		</member>
+		<member name="accessibility_state_selected" type="int" setter="set_accessibility_state_selected" getter="get_accessibility_state_selected" default="0">
+			Exposes the selection state of this control to assistive technologies (0 = None, 1 = Unselected, 2 = Selected). Used for selectable items in list-like controls.
+		</member>
+		<member name="accessibility_state_checked" type="int" setter="set_accessibility_state_checked" getter="get_accessibility_state_checked" default="0">
+			Exposes the check or toggle state of this control to assistive technologies (0 = None, 1 = Unchecked, 2 = Checked, 3 = Mixed). Used for check boxes, toggle buttons, and radio buttons.
+		</member>
+		<member name="accessibility_state_disabled" type="bool" setter="set_accessibility_state_disabled" getter="is_accessibility_state_disabled" default="false">
+			Indicates if this control is currently disabled/inactive for the reader.
+		</member>
+		<member name="accessibility_state_readonly" type="bool" setter="set_accessibility_state_readonly" getter="is_accessibility_state_readonly" default="false">
+			Indicates if this control is read-only (not editable but still focusable).
+		</member>
+		<member name="accessibility_state_hidden" type="bool" setter="set_accessibility_state_hidden" getter="is_accessibility_state_hidden" default="false">
+			Indicates if this control is hidden from assistive technologies.
+		</member>
+		<member name="accessibility_state_busy" type="bool" setter="set_accessibility_state_busy" getter="is_accessibility_state_busy" default="false">
+			Indicates if this control is currently busy loading or processing data.
+		</member>
+		<member name="accessibility_state_required" type="bool" setter="set_accessibility_state_required" getter="is_accessibility_state_required" default="false">
+			Indicates if this control is a required field in a form.
+		</member>
+		<member name="accessibility_state_modal" type="bool" setter="set_accessibility_state_modal" getter="is_accessibility_state_modal" default="false">
+			Indicates if this control is a modal element that blocks interaction with elements outside of it.
+		</member>
 		<member name="accessibility_name" type="String" setter="set_accessibility_name" getter="get_accessibility_name" default="&quot;&quot;">
 			The human-readable node name that is reported to assistive apps.
 		</member>

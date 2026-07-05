@@ -1021,6 +1021,10 @@ void Window::set_visible(bool p_visible) {
 	// Stop any queued resizing, as the window will be resized right now.
 	updating_child_controls = false;
 
+	if (transient_parent && !visible) {
+		_set_transient_exclusive_child(true);
+	}
+
 	Viewport *embedder_vp = get_embedder();
 
 	if (!embedder_vp) {

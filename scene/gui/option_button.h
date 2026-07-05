@@ -92,6 +92,8 @@ protected:
 
 	virtual void shortcut_input(const Ref<InputEvent> &p_event) override;
 
+	virtual AccessibilityServerEnums::AccessibilityRole get_accessibility_default_role() const override;
+
 public:
 	// ATTENTION: This is used by the POT generator's scene parser. If the number of properties returned by `_get_items()` ever changes,
 	// this value should be updated to reflect the new size.

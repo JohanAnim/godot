@@ -138,6 +138,7 @@ private:
 	};
 
 	mutable RID accessibility_row_element;
+	mutable RID accessibility_group_element;
 	mutable bool accessibility_row_dirty = true;
 
 	Vector<Cell> cells;
@@ -185,6 +186,10 @@ private:
 		if (accessibility_row_element.is_valid()) {
 			AccessibilityServer::get_singleton()->free_element(accessibility_row_element);
 			accessibility_row_element = RID();
+		}
+		if (accessibility_group_element.is_valid()) {
+			AccessibilityServer::get_singleton()->free_element(accessibility_group_element);
+			accessibility_group_element = RID();
 		}
 		for (Cell &cell : cells) {
 			if (cell.accessibility_cell_element.is_valid()) {
@@ -556,7 +561,6 @@ private:
 	bool show_column_titles = false;
 
 	bool popup_edit_committed = true;
-	RID accessibility_scroll_element;
 	RID stylebox_ci; // Separate canvas item for drawing native styleboxes.
 	RID custom_ci; // Separate canvas item for drawing custom content.
 	RID header_ci; // Separate canvas item for drawing column headers.
@@ -814,6 +818,7 @@ private:
 	void _check_item_accessibility(TreeItem *p_item, PackedStringArray &r_warnings, int &r_row) const;
 
 	void _accessibility_clean_info(TreeItem *p_item);
+	RID _accessibility_get_item_parent_element(TreeItem *p_item) const;
 	void _accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_row, int p_level);
 
 protected:

@@ -166,15 +166,22 @@ String Button::_get_accessibility_name() const {
 	}
 }
 
+AccessibilityServerEnums::AccessibilityRole Button::get_accessibility_default_role() const {
+	AcceptDialog *dlg = Object::cast_to<AcceptDialog>(const_cast<Button *>(this)->get_parent());
+	if (dlg && dlg->get_ok_button() == this) {
+		return AccessibilityServerEnums::AccessibilityRole::ROLE_DEFAULT_BUTTON;
+	}
+	return AccessibilityServerEnums::AccessibilityRole::ROLE_BUTTON;
+}
+
 void Button::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ACCESSIBILITY_UPDATE: {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AcceptDialog *dlg = Object::cast_to<AcceptDialog>(get_parent());
-			if (dlg && dlg->get_ok_button() == this) {
-				AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_DEFAULT_BUTTON);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, get_accessibility_default_role());
 			}
 		} break;
 

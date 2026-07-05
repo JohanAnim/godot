@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "base_button.h"
+#include "scene/gui/option_button.h"
 
 #include "core/config/project_settings.h"
 #include "core/object/callable_mp.h"
@@ -140,11 +141,13 @@ void BaseButton::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_BUTTON);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_BUTTON);
+			}
 
 			AccessibilityServer::get_singleton()->update_add_action(ae, AccessibilityServerEnums::AccessibilityAction::ACTION_CLICK, callable_mp(this, &BaseButton::_accessibility_action_click));
 			AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, status.disabled);
-			if (toggle_mode) {
+			if (toggle_mode && !Object::cast_to<OptionButton>(this)) {
 				AccessibilityServer::get_singleton()->update_set_checked(ae, status.pressed);
 			}
 			if (button_group.is_valid()) {
@@ -155,6 +158,12 @@ void BaseButton::_notification(int p_what) {
 					AccessibilityServer::get_singleton()->update_add_related_radio_group(ae, btn->get_accessibility_element());
 				}
 			}
+			if (shortcut.is_valid() && shortcut->has_valid_event()) {
+				AccessibilityServer::get_singleton()->update_set_shortcut(ae, shortcut->get_as_text());
+			} else {
+				AccessibilityServer::get_singleton()->update_set_shortcut(ae, String());
+			}
+
 			if (shortcut_in_tooltip && shortcut.is_valid() && shortcut->has_valid_event()) {
 				String text = atr(shortcut->get_name()) + " (" + shortcut->get_as_text() + ")";
 				String tooltip = get_tooltip_text();

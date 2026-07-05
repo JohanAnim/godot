@@ -78,6 +78,9 @@ void Node::_notification(int p_notification) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
+			if (!accessibility_override_tree_hierarchy()) {
+				AccessibilityServer::get_singleton()->update_clear_children(ae);
+			}
 			AccessibilityServer::get_singleton()->update_set_name(ae, get_name());
 
 			// Node children.

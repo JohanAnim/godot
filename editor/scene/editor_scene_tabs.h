@@ -105,6 +105,7 @@ public:
 	static EditorSceneTabs *get_singleton() { return singleton; }
 
 	void add_extra_button(Button *p_button);
+	void grab_focus();
 
 	void set_current_tab(int p_tab);
 	int get_current_tab() const;

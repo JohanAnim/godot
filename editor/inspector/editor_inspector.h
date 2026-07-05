@@ -543,6 +543,7 @@ protected:
 
 	void _accessibility_action_collapse(const Variant &p_data);
 	void _accessibility_action_expand(const Variant &p_data);
+	void _accessibility_action_toggle(const Variant &p_data);
 
 public:
 	virtual Size2 get_minimum_size() const override;
