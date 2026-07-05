@@ -462,6 +462,8 @@ EditorSceneTabs::EditorSceneTabs() {
 	tabbar_panel = memnew(PanelContainer);
 	add_child(tabbar_panel);
 	tabbar_container = memnew(HBoxContainer);
+	tabbar_container->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	tabbar_container->set_accessibility_name(TTRC("Scene tabs"));
 	tabbar_panel->add_child(tabbar_container);
 
 	scene_tabs = memnew(TabBar);

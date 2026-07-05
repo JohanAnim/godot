@@ -4478,9 +4478,13 @@ FileSystemDock::FileSystemDock() {
 	main_vb->add_child(top_vbc);
 
 	toolbar_hbc = memnew(HBoxContainer);
+	toolbar_hbc->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	toolbar_hbc->set_accessibility_name(TTRC("File system navigation toolbar"));
 	top_vbc->add_child(toolbar_hbc);
 
 	HBoxContainer *nav_hbc = memnew(HBoxContainer);
+	nav_hbc->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	nav_hbc->set_accessibility_name(TTRC("File system navigation history"));
 	nav_hbc->add_theme_constant_override("separation", 0);
 	toolbar_hbc->add_child(nav_hbc);
 
@@ -4513,6 +4517,8 @@ FileSystemDock::FileSystemDock() {
 	toolbar_hbc->add_child(button_toggle_display_mode);
 
 	toolbar2_hbc = memnew(HBoxContainer);
+	toolbar2_hbc->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	toolbar2_hbc->set_accessibility_name(TTRC("File system tree search"));
 	top_vbc->add_child(toolbar2_hbc);
 
 	tree_search_box = memnew(LineEdit);
@@ -4571,6 +4577,8 @@ FileSystemDock::FileSystemDock() {
 	split_box->add_child(file_list_vb);
 
 	path_hb = memnew(HBoxContainer);
+	path_hb->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	path_hb->set_accessibility_name(TTRC("File list search and options"));
 	path_hb->set_h_size_flags(SIZE_EXPAND_FILL);
 	file_list_vb->add_child(path_hb);
 

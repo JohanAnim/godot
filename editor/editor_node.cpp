@@ -8788,6 +8788,8 @@ EditorNode::EditorNode() {
 	gui_base->add_child(main_vbox);
 
 	title_bar = memnew(EditorTitleBar);
+	title_bar->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	title_bar->set_accessibility_name(TTRC("Editor title bar"));
 	main_vbox->add_child(title_bar);
 #endif
 
@@ -9173,6 +9175,8 @@ EditorNode::EditorNode() {
 	left_spacer->add_child(project_title);
 
 	HBoxContainer *main_editor_button_hb = memnew(HBoxContainer);
+	main_editor_button_hb->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	main_editor_button_hb->set_accessibility_name(TTRC("Editor screen selector"));
 	main_editor_button_hb->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 	main_editor_button_hb->set_name("EditorMainScreenButtons");
 	editor_main_screen->set_button_container(main_editor_button_hb);
@@ -9192,6 +9196,8 @@ EditorNode::EditorNode() {
 	project_run_bar->connect("stop_pressed", callable_mp(this, &EditorNode::_project_run_stopped));
 
 	right_menu_hb = memnew(HBoxContainer);
+	right_menu_hb->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	right_menu_hb->set_accessibility_name(TTRC("Editor rendering options"));
 	right_menu_hb->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 	title_bar->add_child(right_menu_hb);
 
