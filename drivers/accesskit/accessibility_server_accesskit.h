@@ -92,7 +92,6 @@ class AccessibilityServerAccessKit : public AccessibilityServer {
 		String placeholder;
 		String author_id;
 		String state_description;
-		RID tooltip_element; // Child element with ROLE_TOOLTIP.
 
 		LocalVector<Relation> relations;
 	};

@@ -1213,24 +1213,11 @@ void AccessibilityServerAccessKit::update_set_tooltip(const RID &p_id, const Str
 
 	ae->tooltip = p_tooltip;
 
-	// Remove old tooltip sub-element if it exists.
-	if (ae->tooltip_element.is_valid()) {
-		free_element(ae->tooltip_element);
-		ae->tooltip_element = RID();
-	}
-
 	if (!p_tooltip.is_empty()) {
-		// Create a child element with ROLE_TOOLTIP per Microsoft UIA standards.
-		RID tooltip_rid = create_sub_element(p_id, AccessibilityServerEnums::ROLE_TOOLTIP);
-		AccessibilityElement *tooltip_ae = rid_owner.get_or_null(tooltip_rid);
-		if (tooltip_ae) {
-			tooltip_ae->name = p_tooltip;
-			accesskit_node_set_label(tooltip_ae->node, p_tooltip.utf8().ptr());
-		}
-		ae->tooltip_element = tooltip_rid;
-
-		// Also set HelpText on the parent control itself so screen readers
-		// announce tooltip text when the control receives focus.
+		// Per Microsoft UIA: tooltip text is exposed via HelpText on the control.
+		// Screen readers (NVDA, Narrator) announce HelpText when the control
+		// receives focus. The visual tooltip popup is handled separately by
+		// the Viewport's PopupPanel system.
 		ae->placeholder = p_tooltip;
 		accesskit_node_set_placeholder(ae->node, p_tooltip.utf8().ptr());
 	} else {
