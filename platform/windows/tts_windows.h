@@ -39,6 +39,7 @@ struct TTSUtterance;
 
 class TTS_Windows {
 	TTSDriver *driver = nullptr;
+	TTSDriver *sapi_driver = nullptr;
 
 	static TTS_Windows *singleton;
 
