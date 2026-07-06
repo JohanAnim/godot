@@ -723,8 +723,6 @@ InspectorDock::InspectorDock(EditorData &p_editor_data) {
 	property_name_style = EditorPropertyNameProcessor::get_default_inspector_style();
 
 	HBoxContainer *general_options_hb = memnew(HBoxContainer);
-	general_options_hb->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
-	general_options_hb->set_accessibility_name(TTRC("Inspector resource options"));
 	main_vb->add_child(general_options_hb);
 
 	resource_new_button = memnew(Button);
@@ -793,8 +791,6 @@ InspectorDock::InspectorDock(EditorData &p_editor_data) {
 	history_menu->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &InspectorDock::_select_history));
 
 	HBoxContainer *subresource_hb = memnew(HBoxContainer);
-	subresource_hb->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
-	subresource_hb->set_accessibility_name(TTRC("Inspector object selector"));
 	main_vb->add_child(subresource_hb);
 	object_selector = memnew(EditorObjectSelector(EditorNode::get_singleton()->get_editor_selection_history()));
 	object_selector->set_h_size_flags(Control::SIZE_EXPAND_FILL);
@@ -814,8 +810,6 @@ InspectorDock::InspectorDock(EditorData &p_editor_data) {
 	new_resource_dialog->connect("create", callable_mp(this, &InspectorDock::_resource_created));
 
 	HBoxContainer *property_tools_hb = memnew(HBoxContainer);
-	property_tools_hb->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
-	property_tools_hb->set_accessibility_name(TTRC("Inspector search and options"));
 	main_vb->add_child(property_tools_hb);
 
 	search = memnew(LineEdit);

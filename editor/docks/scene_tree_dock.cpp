@@ -5030,8 +5030,6 @@ SceneTreeDock::SceneTreeDock(Node *p_scene_root, EditorSelection *p_editor_selec
 	add_child(main_vbox);
 
 	HBoxContainer *filter_hbc = memnew(HBoxContainer);
-	filter_hbc->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
-	filter_hbc->set_accessibility_name(TTRC("Scene tree toolbar"));
 	filter_hbc->add_theme_constant_override("separate", 0);
 
 	ED_SHORTCUT("scene_tree/rename", TTRC("Rename"), Key::F2);
@@ -5134,8 +5132,6 @@ SceneTreeDock::SceneTreeDock(Node *p_scene_root, EditorSelection *p_editor_selec
 	main_vbox->add_child(button_panel);
 
 	HBoxContainer *button_hb = memnew(HBoxContainer);
-	button_hb->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
-	button_hb->set_accessibility_name(TTRC("Scene remote/local selector"));
 	button_panel->add_child(button_hb);
 
 	edit_remote = memnew(Button);

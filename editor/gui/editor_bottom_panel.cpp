@@ -297,7 +297,7 @@ EditorBottomPanel::EditorBottomPanel() :
 
 	bottom_hbox = memnew(HBoxContainer);
 	bottom_hbox->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
-	bottom_hbox->set_accessibility_name(TTRC("Bottom panel controls"));
+	bottom_hbox->set_accessibility_name(TTR("Bottom panel controls"));
 	bottom_hbox->set_mouse_filter(MOUSE_FILTER_IGNORE);
 	get_internal_container()->add_child(bottom_hbox);
 

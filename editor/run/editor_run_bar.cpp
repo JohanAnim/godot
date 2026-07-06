@@ -560,7 +560,7 @@ EditorRunBar::EditorRunBar() {
 
 	outer_hbox = memnew(HBoxContainer);
 	outer_hbox->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
-	outer_hbox->set_accessibility_name(TTRC("Run controls"));
+	outer_hbox->set_accessibility_name(TTR("Run controls"));
 	add_child(outer_hbox);
 
 	// Use a button for the indicator since it comes with a background panel and pixel perfect centering of an icon.
@@ -577,8 +577,6 @@ EditorRunBar::EditorRunBar() {
 	outer_hbox->add_child(main_panel);
 
 	main_hbox = memnew(HBoxContainer);
-	main_hbox->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
-	main_hbox->set_accessibility_name(TTRC("Run buttons"));
 	main_panel->add_child(main_hbox);
 
 	if (Engine::get_singleton()->is_recovery_mode_hint()) {
