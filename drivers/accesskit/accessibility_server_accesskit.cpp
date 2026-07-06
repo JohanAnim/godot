@@ -1212,27 +1212,30 @@ void AccessibilityServerAccessKit::update_set_tooltip(const RID &p_id, const Str
 	_ensure_node(p_id, ae);
 
 	ae->tooltip = p_tooltip;
-	if (!p_tooltip.is_empty()) {
-		// Set the AccessKit tooltip property (used by some platforms).
-		accesskit_node_set_tooltip(ae->node, p_tooltip.utf8().ptr());
 
-		// Set UIA_HelpTextPropertyId (via placeholder) - Microsoft recommends this
-		// as the primary property for tooltip text on controls.
+	// Remove old tooltip sub-element if it exists.
+	if (ae->tooltip_element.is_valid()) {
+		free_element(ae->tooltip_element);
+		ae->tooltip_element = RID();
+	}
+
+	if (!p_tooltip.is_empty()) {
+		// Create a child element with ROLE_TOOLTIP per Microsoft UIA standards.
+		RID tooltip_rid = create_sub_element(p_id, AccessibilityServerEnums::ROLE_TOOLTIP);
+		AccessibilityElement *tooltip_ae = rid_owner.get_or_null(tooltip_rid);
+		if (tooltip_ae) {
+			tooltip_ae->name = p_tooltip;
+			accesskit_node_set_label(tooltip_ae->node, p_tooltip.utf8().ptr());
+		}
+		ae->tooltip_element = tooltip_rid;
+
+		// Also set HelpText on the parent control itself so screen readers
+		// announce tooltip text when the control receives focus.
 		ae->placeholder = p_tooltip;
 		accesskit_node_set_placeholder(ae->node, p_tooltip.utf8().ptr());
-
-		// Also set UIA_FullDescriptionPropertyId (via description) when no custom
-		// description exists, as NVDA reads this property.
-		if (ae->description.is_empty()) {
-			accesskit_node_set_description(ae->node, p_tooltip.utf8().ptr());
-		}
 	} else {
-		accesskit_node_clear_tooltip(ae->node);
 		ae->placeholder.clear();
 		accesskit_node_clear_placeholder(ae->node);
-		if (ae->description.is_empty()) {
-			accesskit_node_clear_description(ae->node);
-		}
 	}
 }
 
