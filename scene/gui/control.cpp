@@ -4630,7 +4630,24 @@ void Control::_notification(int p_notification) {
 
 			AccessibilityServer::get_singleton()->update_set_transform(ae, get_transform());
 			AccessibilityServer::get_singleton()->update_set_bounds(ae, Rect2(Vector2(), data.size_cache));
-			AccessibilityServer::get_singleton()->update_set_tooltip(ae, data.tooltip);
+			// Translate tooltip for accessibility based on auto-translate mode.
+			{
+				String ac_tooltip;
+				if (!data.tooltip.is_empty()) {
+					switch (data.tooltip_auto_translate_mode) {
+						case AUTO_TRANSLATE_MODE_ALWAYS:
+							ac_tooltip = tr(data.tooltip);
+							break;
+						case AUTO_TRANSLATE_MODE_DISABLED:
+							ac_tooltip = data.tooltip;
+							break;
+						default: // AUTO_TRANSLATE_MODE_INHERIT.
+							ac_tooltip = atr(data.tooltip);
+							break;
+					}
+				}
+				AccessibilityServer::get_singleton()->update_set_tooltip(ae, ac_tooltip);
+			}
 			AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_CLIPS_CHILDREN, data.clip_contents);
 			AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_TOUCH_PASSTHROUGH, data.mouse_filter == MOUSE_FILTER_PASS);
 

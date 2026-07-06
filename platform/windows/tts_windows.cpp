@@ -90,8 +90,35 @@ Array TTS_Windows::get_voices() const {
 }
 
 void TTS_Windows::speak(const String &p_text, const String &p_voice, int p_volume, float p_pitch, float p_rate, int64_t p_utterance_id, bool p_interrupt) {
+	// Find which driver owns this voice ID.
+	TTSDriver *target = nullptr;
 	if (driver) {
-		driver->speak(p_text, p_voice, p_volume, p_pitch, p_rate, p_utterance_id, p_interrupt);
+		Array voices = driver->get_voices();
+		for (int i = 0; i < voices.size(); i++) {
+			Dictionary d = voices[i];
+			if (String(d["id"]) == p_voice) {
+				target = driver;
+				break;
+			}
+		}
+	}
+	// If active driver doesn't have this voice, try SAPI.
+	if (!target && sapi_driver && sapi_driver != driver) {
+		Array voices = sapi_driver->get_voices();
+		for (int i = 0; i < voices.size(); i++) {
+			Dictionary d = voices[i];
+			if (String(d["id"]) == p_voice) {
+				target = sapi_driver;
+				break;
+			}
+		}
+	}
+	// Fallback to active driver.
+	if (!target) {
+		target = driver;
+	}
+	if (target) {
+		target->speak(p_text, p_voice, p_volume, p_pitch, p_rate, p_utterance_id, p_interrupt);
 	}
 }
 
