@@ -1210,8 +1210,17 @@ void AccessibilityServerAccessKit::update_set_tooltip(const RID &p_id, const Str
 	ae->tooltip = p_tooltip;
 	if (!p_tooltip.is_empty()) {
 		accesskit_node_set_tooltip(ae->node, p_tooltip.utf8().ptr());
+		// Also use as description when no custom description is set, so screen
+		// readers announce tooltip text automatically on focus.
+		if (ae->description.is_empty()) {
+			accesskit_node_set_description(ae->node, p_tooltip.utf8().ptr());
+		}
 	} else {
 		accesskit_node_clear_tooltip(ae->node);
+		// Clear description if it was set from tooltip (no custom description).
+		if (ae->description.is_empty()) {
+			accesskit_node_clear_description(ae->node);
+		}
 	}
 }
 

@@ -44,7 +44,14 @@ TTS_Windows *TTS_Windows::get_singleton() {
 
 bool TTS_Windows::is_speaking() const {
 	if (driver) {
-		return driver->is_speaking();
+		if (driver->is_speaking()) {
+			return true;
+		}
+	}
+	if (sapi_driver && sapi_driver != driver) {
+		if (sapi_driver->is_speaking()) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -138,11 +145,18 @@ void TTS_Windows::stop() {
 	if (driver) {
 		driver->stop();
 	}
+	if (sapi_driver && sapi_driver != driver) {
+		sapi_driver->stop();
+	}
 }
 
 void TTS_Windows::process_events() {
 	if (driver) {
 		driver->process_events();
+	}
+	// Also process SAPI driver events if it's a different driver (voice may have been routed there).
+	if (sapi_driver && sapi_driver != driver) {
+		sapi_driver->process_events();
 	}
 }
 
