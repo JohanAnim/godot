@@ -89,6 +89,7 @@ class AccessibilityServerAccessKit : public AccessibilityServer {
 		int selected_state = 0; // 0=none, 1=false, 2=true
 		String description;
 		String tooltip;
+		String placeholder;
 		String author_id;
 		String state_description;
 

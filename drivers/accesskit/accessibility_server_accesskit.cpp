@@ -1003,6 +1003,10 @@ _FORCE_INLINE_ void AccessibilityServerAccessKit::_ensure_node(const RID &p_id, 
 			accesskit_node_set_tooltip(p_ae->node, p_ae->tooltip.utf8().ptr());
 		}
 
+		if (!p_ae->placeholder.is_empty()) {
+			accesskit_node_set_placeholder(p_ae->node, p_ae->placeholder.utf8().ptr());
+		}
+
 		if (!p_ae->author_id.is_empty()) {
 			accesskit_node_set_author_id(p_ae->node, p_ae->author_id.utf8().ptr());
 		}
@@ -1209,15 +1213,23 @@ void AccessibilityServerAccessKit::update_set_tooltip(const RID &p_id, const Str
 
 	ae->tooltip = p_tooltip;
 	if (!p_tooltip.is_empty()) {
+		// Set the AccessKit tooltip property (used by some platforms).
 		accesskit_node_set_tooltip(ae->node, p_tooltip.utf8().ptr());
-		// Also use as description when no custom description is set, so screen
-		// readers announce tooltip text automatically on focus.
+
+		// Set UIA_HelpTextPropertyId (via placeholder) - Microsoft recommends this
+		// as the primary property for tooltip text on controls.
+		ae->placeholder = p_tooltip;
+		accesskit_node_set_placeholder(ae->node, p_tooltip.utf8().ptr());
+
+		// Also set UIA_FullDescriptionPropertyId (via description) when no custom
+		// description exists, as NVDA reads this property.
 		if (ae->description.is_empty()) {
 			accesskit_node_set_description(ae->node, p_tooltip.utf8().ptr());
 		}
 	} else {
 		accesskit_node_clear_tooltip(ae->node);
-		// Clear description if it was set from tooltip (no custom description).
+		ae->placeholder.clear();
+		accesskit_node_clear_placeholder(ae->node);
 		if (ae->description.is_empty()) {
 			accesskit_node_clear_description(ae->node);
 		}
