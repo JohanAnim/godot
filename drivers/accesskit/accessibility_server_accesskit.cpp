@@ -1213,11 +1213,30 @@ void AccessibilityServerAccessKit::update_set_tooltip(const RID &p_id, const Str
 
 	ae->tooltip = p_tooltip;
 
+	// Remove old tooltip element if it exists.
+	if (ae->tooltip_element.is_valid()) {
+		free_element(ae->tooltip_element);
+		ae->tooltip_element = RID();
+	}
+
 	if (!p_tooltip.is_empty()) {
-		// Per Microsoft UIA: tooltip text is exposed via HelpText on the control.
-		// Screen readers (NVDA, Narrator) announce HelpText when the control
-		// receives focus. The visual tooltip popup is handled separately by
-		// the Viewport's PopupPanel system.
+		// Create hidden child element with ROLE_TOOLTIP per W3C ARIA tooltip pattern.
+		// The tooltip is a separate element with role="tooltip", linked to the control
+		// via aria-describedby (UIA DescribedBy relationship).
+		RID tooltip_rid = create_sub_element(p_id, AccessibilityServerEnums::ROLE_TOOLTIP);
+		AccessibilityElement *tooltip_ae = rid_owner.get_or_null(tooltip_rid);
+		if (tooltip_ae) {
+			tooltip_ae->name = p_tooltip;
+			accesskit_node_set_label(tooltip_ae->node, p_tooltip.utf8().ptr());
+			// Hide visually - screen readers still read it via describedby relationship.
+			accesskit_node_set_hidden(tooltip_ae->node);
+		}
+		ae->tooltip_element = tooltip_rid;
+
+		// Add describedby relationship: control → tooltip.
+		ae->relations.push_back({ AccessibilityElement::RELATION_DESCRIBED_BY, tooltip_rid });
+
+		// Also set HelpText on the control for UIA (NVDA reads this on focus).
 		ae->placeholder = p_tooltip;
 		accesskit_node_set_placeholder(ae->node, p_tooltip.utf8().ptr());
 	} else {
