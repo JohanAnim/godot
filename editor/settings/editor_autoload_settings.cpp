@@ -533,9 +533,9 @@ void EditorAutoloadSettings::update_autoload() {
 		item->set_editable(2, true);
 		item->set_text(2, TTRC("Enable"));
 		item->set_checked(2, info.is_singleton);
-		item->add_button(3, get_editor_theme_icon(SNAME("MoveUp")), BUTTON_MOVE_UP);
-		item->add_button(3, get_editor_theme_icon(SNAME("MoveDown")), BUTTON_MOVE_DOWN);
-		item->add_button(3, get_editor_theme_icon(SNAME("Remove")), BUTTON_DELETE);
+		item->add_button(3, get_editor_theme_icon(SNAME("MoveUp")), BUTTON_MOVE_UP, false, TTRC("Move Up"));
+		item->add_button(3, get_editor_theme_icon(SNAME("MoveDown")), BUTTON_MOVE_DOWN, false, TTRC("Move Down"));
+		item->add_button(3, get_editor_theme_icon(SNAME("Remove")), BUTTON_DELETE, false, TTRC("Remove"));
 		item->set_selectable(3, false);
 	}
 
@@ -915,6 +915,7 @@ EditorAutoloadSettings::EditorAutoloadSettings() {
 	SET_DRAG_FORWARDING_GCD(tree, EditorAutoloadSettings);
 
 	tree->set_theme_type_variation("TreeTable");
+	tree->set_accessibility_as_grid(true);
 	tree->set_hide_folding(true);
 	tree->set_columns(4);
 	tree->set_column_titles_visible(true);

@@ -1419,6 +1419,24 @@ void FileSystemDock::_fs_changed() {
 	scanning_vb->hide();
 	split_box->show();
 
+	// Capture the control that currently has focus BEFORE the rebuild destroys
+	// the tree's internal focus state. `_update_tree` calls `tree->clear()` which
+	// orphans the currently focused item and causes the focus to fall through to
+	// the parent window — exactly the "focus jumps to the main window" behavior
+	// observed after saving a scene while the FileSystem dock has focus. We
+	// restore the focus only if the same control (tree or files) still exists and
+	// still has the focus mode, and we do not force an accessibility update
+	// (which would make the screen reader re-announce the focused element
+	// and read as another focus jump).
+	Control *prev_focus = nullptr;
+	Viewport *vp = get_viewport();
+	if (vp) {
+		Control *f = vp->gui_get_focus_owner();
+		if (f == tree || f == files) {
+			prev_focus = f;
+		}
+	}
+
 	update_all();
 
 	if (!select_after_scan.is_empty()) {
@@ -1429,9 +1447,27 @@ void FileSystemDock::_fs_changed() {
 	}
 
 	set_process(false);
-	if (had_focus) {
-		had_focus->grab_focus();
-		had_focus = nullptr;
+	had_focus = nullptr;
+
+	// Restore focus to the control that had it before the rebuild. We only
+	// grab focus if the user actually had focus on the dock before the rescan
+	// (i.e. they were working with it) and the control is still valid. Calling
+	// `grab_focus()` here is what makes the difference between the focus
+	// landing on the main window (no restore) and the focus landing back on
+	// the dock (restored) after a save-induced rescan.
+	if (prev_focus && prev_focus->is_visible_in_tree() && !prev_focus->has_focus(true)) {
+		prev_focus->grab_focus();
+	}
+
+	// Schedule a fresh accessibility update for the tree so the screen reader
+	// re-reads the row's level, position, and state. The rescan rebuilds the
+	// tree structure in `_update_tree`, but the per-item accessibility elements
+	// are populated lazily during the next NOTIFICATION_ACCESSIBILITY_UPDATE.
+	// Without this explicit nudge, the screen reader can keep reporting stale
+	// values (especially the depth / level of nested folders) until the next
+	// user interaction moves the cursor.
+	if (tree->is_inside_tree()) {
+		tree->queue_accessibility_update();
 	}
 }
 
@@ -3677,7 +3713,12 @@ void FileSystemDock::_tree_rmb_select(const Vector2 &p_pos, MouseButton p_button
 	}
 	tree->grab_focus(true);
 
-	// Right click is pressed in the tree.
+	// Right click is pressed in the tree. Mirror the Tree's right-click behavior on an unselected
+	// cursor: if the keyboard cursor is not part of the marked selection, deselect everything else
+	// and select only the cursor. This makes the context menu operate on the right item whether
+	// it was opened by mouse right-click or by keyboard (Shift+F10 after arrow navigation).
+	_select_only_cursor_item();
+
 	Vector<String> paths = _tree_get_selected(false);
 
 	tree_popup->clear();
@@ -3690,6 +3731,64 @@ void FileSystemDock::_tree_rmb_select(const Vector2 &p_pos, MouseButton p_button
 		tree_popup->reset_size();
 		tree_popup->popup();
 	}
+}
+
+void FileSystemDock::_select_only_cursor_item() {
+	// Replicates Tree::select_single_item(cursor, root, col) for SELECT_MULTI,
+	// which is private. We need this to make keyboard context menu (Shift+F10)
+	// behave like a right-click on the cursor: deselect other items, keep the
+	// cursor item selected. If the cursor is already part of a multi-selection,
+	// the selection is preserved (matching the right-click behavior).
+	TreeItem *cursor = tree->get_selected();
+	if (!cursor || tree->get_select_mode() != Tree::SELECT_MULTI) {
+		return;
+	}
+	if (cursor->is_selected(0)) {
+		// Cursor is already part of the marked selection; preserve it.
+		return;
+	}
+
+	// Collect marked items (excluding the cursor) so the deselect loop is stable.
+	Vector<TreeItem *> to_deselect;
+	TreeItem *item = tree->get_next_selected(tree->get_root());
+	while (item) {
+		if (item != cursor && item != favorites_item) {
+			to_deselect.push_back(item);
+		}
+		item = tree->get_next_selected(item);
+	}
+	for (TreeItem *i : to_deselect) {
+		i->deselect(0);
+		emit_signal(SNAME("multi_selected"), i, 0, false);
+	}
+	if (cursor->is_selectable(0)) {
+		cursor->select(0);
+		emit_signal(SNAME("multi_selected"), cursor, 0, true);
+	}
+
+	// Keep `current_path` in sync with the cursor so that a subsequent
+	// save-induced rescan (which rebuilds the tree and restores the cursor
+	// from `current_path`) lands on the same item the user just navigated to
+	// instead of silently reverting to the previous click target. We do not
+	// push to history here — that would pollute back/forward navigation with
+	// every arrow keystroke.
+	const Variant new_path = cursor->get_metadata(0);
+	if (new_path.get_type() == Variant::STRING) {
+		const String path_str = new_path;
+		if (!path_str.is_empty() && path_str != current_path) {
+			current_path = path_str;
+			_set_current_path_line_edit_text(current_path);
+		}
+	}
+
+	// Mark the cursor as accessibility-dirty so the next accessibility update
+	// flush re-evaluates its level / state from scratch. Without this, when the
+	// cursor jumps to an item in a deeper (or shallower) folder, the screen
+	// reader can keep reporting a stale "Level 1" until something else forces
+	// a rebuild — even though the underlying item_level calculation is correct,
+	// the cache of the previous level lingers in AccessKit / the screen reader.
+	cursor->accessibility_row_dirty = true;
+	tree->queue_accessibility_update();
 }
 
 void FileSystemDock::_tree_empty_click(const Vector2 &p_pos, MouseButton p_button) {
@@ -3932,6 +4031,95 @@ void FileSystemDock::_tree_gui_input(Ref<InputEvent> p_event) {
 					}
 				}
 				EditorContextMenuPluginManager::get_singleton()->invoke_callback(custom_callback, selected);
+			} else if (key->get_keycode() == Key::SPACE && key->is_ctrl_pressed()) {
+				// Ctrl+Space: explicitly toggle the marked selection of the keyboard cursor.
+				// This mirrors Windows Explorer's Ctrl+Space behavior and works regardless of
+				// whether the project's input map has `ui_select` defined.
+				TreeItem *cursor = tree->get_selected();
+				if (cursor && tree->get_select_mode() == Tree::SELECT_MULTI) {
+					if (cursor->is_selected(0)) {
+						cursor->deselect(0);
+						emit_signal(SNAME("multi_selected"), cursor, 0, false);
+					} else if (cursor->is_selectable(0)) {
+						cursor->select(0);
+						emit_signal(SNAME("multi_selected"), cursor, 0, true);
+					}
+					// Force the tree to redraw and refresh accessibility so the screen reader
+					// announces the new selection state immediately.
+					tree->queue_redraw();
+					tree->queue_accessibility_update();
+				}
+				// Always consume Ctrl+Space, even when there is no cursor, so the Tree's own
+				// ui_select handler cannot fire on the same keypress and undo our toggle.
+				accept_event();
+			} else if (key->get_keycode() == Key::SPACE && !key->is_ctrl_pressed() && !key->is_shift_pressed() && !key->is_alt_pressed() && !key->is_meta_pressed()) {
+				// Plain Space: do nothing. In Godot's Tree, ui_select is bound to Space, which
+				// toggles the marked selection of the cursor. For Windows-Explorer-style
+				// navigation in the FileSystem dock, marking is done by the arrow keys (auto-mark)
+				// and by Ctrl+Space (explicit multi-select toggle). Plain Space must not
+				// change the selection because that would surprise the user — for example, a
+				// user navigating to a file with arrows would have it auto-marked, then lose the
+				// mark the moment they press Space (which they might do by habit).
+				// Consume the event so the Tree's ui_select handler cannot fire and undo our
+				// auto-mark from the previous arrow keypress.
+				accept_event();
+			} else if ((key->get_keycode() == Key::UP && key->is_ctrl_pressed()) ||
+					   (key->get_keycode() == Key::DOWN && key->is_ctrl_pressed())) {
+				// Ctrl+Up / Ctrl+Down: navigate the cursor WITHOUT changing the marked
+				// selection, mirroring Windows Explorer's Ctrl+Arrow behavior in the file
+				// tree. This must be handled locally in the FileSystem dock (rather than
+				// relying on the Tree's ui_up / ui_down handlers) because those handlers
+				// intentionally skip navigation when Ctrl is pressed to leave the shortcut
+				// free for the SceneTree dock (which uses Ctrl+Up / Ctrl+Down to move a
+				// node up or down in the hierarchy). The marked selection is preserved and
+				// the screen reader announces the new focused item through the
+				// active-descendant relation.
+				//
+				// CRITICAL: we must also update `current_path` here. The path drives
+				// cursor restoration after a save-induced filesystem rescan (the
+				// rebuild uses `current_path` to pick the new cursor). Without this,
+				// pressing Ctrl+S would silently move the cursor back to the
+				// previously-clicked folder instead of staying on the item the user
+				// just navigated to.
+				TreeItem *cursor = tree->get_selected();
+				if (cursor) {
+					TreeItem *target = (key->get_keycode() == Key::UP)
+							? cursor->get_prev_visible()
+							: cursor->get_next_visible();
+					if (target) {
+						target->set_as_cursor(0);
+						// Force a full re-evaluation of the new cursor's level/position
+						// accessibility data on the next flush. Without this, the screen
+						// reader can keep reporting the previous item's level until the
+						// cache is invalidated by an unrelated change.
+						target->accessibility_row_dirty = true;
+						tree->queue_accessibility_update();
+						const Variant new_path = target->get_metadata(0);
+						if (new_path.get_type() == Variant::STRING) {
+							const String path_str = new_path;
+							if (!path_str.is_empty()) {
+								current_path = path_str;
+								_set_current_path_line_edit_text(current_path);
+							}
+						}
+					}
+				}
+				accept_event();
+			} else if (key->get_keycode() == Key::UP || key->get_keycode() == Key::DOWN ||
+					   key->get_keycode() == Key::LEFT || key->get_keycode() == Key::RIGHT ||
+					   key->get_keycode() == Key::PAGEUP || key->get_keycode() == Key::PAGEDOWN ||
+					   key->get_keycode() == Key::HOME || key->get_keycode() == Key::END) {
+				// Plain navigation key (Up/Down/Left/Right/PageUp/PageDown/Home/End).
+				// Mirrors Windows Explorer behavior: plain arrows navigate AND replace
+				// the marked selection with the new cursor (single-selection-style auto-mark).
+				// We do not consume the event so the Tree still moves the cursor, and we
+				// defer the selection update so it runs after the Tree has already moved
+				// the cursor.
+				if (!key->is_shift_pressed() && !key->is_alt_pressed() && !key->is_meta_pressed()) {
+					callable_mp(this, &FileSystemDock::_select_only_cursor_item).call_deferred();
+				}
+				// Let Tree process the actual cursor movement.
+				return;
 			} else {
 				return;
 			}

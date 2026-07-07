@@ -155,7 +155,7 @@ void MenuButton::_notification(int p_what) {
 			// 0 = none, 1 = collapsed (false), 2 = expanded (true)
 			bool is_open = popup && popup->is_visible();
 			AccessibilityServer::get_singleton()->update_set_expanded(ae, is_open ? 2 : 1);
-			AccessibilityServer::get_singleton()->update_set_state_description(ae, is_open ? TTR("expanded") : TTR("collapsed"));
+			AccessibilityServer::get_singleton()->update_set_state_description(ae, is_open ? atr("expanded") : atr("collapsed"));
 
 			if (popup && popup->get_accessibility_element().is_valid()) {
 				if (is_open) {

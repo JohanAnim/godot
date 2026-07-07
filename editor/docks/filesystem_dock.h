@@ -334,6 +334,7 @@ private:
 	void _generic_rmb_option_selected(int p_option);
 	void _file_option(int p_option, const Vector<String> &p_selected);
 	int _get_menu_option_from_key(const Ref<InputEventKey> &p_key);
+	void _select_only_cursor_item();
 
 	void _fw_history();
 	void _bw_history();

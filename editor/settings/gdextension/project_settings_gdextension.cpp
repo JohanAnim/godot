@@ -116,6 +116,7 @@ ProjectSettingsGDExtension::ProjectSettingsGDExtension() {
 	extension_list->set_v_size_flags(SIZE_EXPAND_FILL);
 	extension_list->set_hide_root(true);
 	extension_list->set_theme_type_variation("TreeTable");
+	extension_list->set_accessibility_as_grid(true);
 	extension_list->set_hide_folding(true);
 	// Configure tree columns.
 	extension_list->set_columns(COLUMN_MAX);

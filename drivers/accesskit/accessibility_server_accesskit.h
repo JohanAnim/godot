@@ -94,6 +94,31 @@ class AccessibilityServerAccessKit : public AccessibilityServer {
 		String state_description;
 		RID tooltip_element; // Hidden tooltip element with ROLE_TOOLTIP.
 
+		// Computes the description to expose to UIA: combines the control's
+		// own description with the tooltip, skipping the tooltip if it duplicates
+		// the effective name (to prevent "name name" announcements).
+		String get_effective_description(const String &p_effective_name) const {
+			String result = description;
+			if (!tooltip.is_empty()) {
+				// Only include tooltip if it doesn't duplicate the name.
+				if (p_effective_name.strip_edges().is_empty() ||
+						tooltip.strip_edges().nocasecmp_to(p_effective_name.strip_edges()) != 0) {
+					if (result.is_empty()) {
+						result = tooltip;
+					} else if (!result.ends_with(tooltip)) {
+						result = result + "\n" + tooltip;
+					}
+				}
+			}
+			// Final check: if the result equals the name, return empty to avoid
+			// "name name" duplication (e.g. node named "X" with description "X").
+			if (!result.strip_edges().is_empty() && !p_effective_name.strip_edges().is_empty() &&
+					result.strip_edges().nocasecmp_to(p_effective_name.strip_edges()) == 0) {
+				return String();
+			}
+			return result;
+		}
+
 		LocalVector<Relation> relations;
 	};
 	mutable RID_PtrOwner<AccessibilityElement> rid_owner{ 65536, 1048576 };

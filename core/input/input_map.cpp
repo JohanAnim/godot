@@ -800,6 +800,7 @@ const HashMap<String, List<Ref<InputEvent>>> &InputMap::get_builtins() {
 
 	inputs = List<Ref<InputEvent>>();
 	inputs.push_back(InputEventKey::create_reference(Key::MENU));
+	inputs.push_back(InputEventKey::create_reference(Key::F10 | KeyModifierMask::SHIFT));
 	default_builtin_cache.insert("ui_menu", inputs);
 
 	inputs = List<Ref<InputEvent>>();

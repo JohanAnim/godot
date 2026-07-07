@@ -139,7 +139,11 @@ private:
 
 	mutable RID accessibility_row_element;
 	mutable RID accessibility_group_element;
+
+public:
 	mutable bool accessibility_row_dirty = true;
+
+private:
 
 	Vector<Cell> cells;
 
@@ -796,6 +800,8 @@ private:
 
 	bool enable_auto_tooltip = true;
 
+	bool accessibility_as_grid = false;
+
 	bool hovered_update_queued = false;
 	void _determine_hovered_item();
 	void _queue_update_hovered_item();
@@ -953,6 +959,9 @@ public:
 
 	void set_hide_folding(bool p_hide);
 	bool is_folding_hidden() const;
+
+	void set_accessibility_as_grid(bool p_enable);
+	bool is_accessibility_as_grid() const;
 
 	void set_enable_recursive_folding(bool p_enable);
 	bool is_recursive_folding_enabled() const;

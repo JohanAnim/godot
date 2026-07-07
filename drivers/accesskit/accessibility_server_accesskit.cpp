@@ -995,8 +995,15 @@ _FORCE_INLINE_ void AccessibilityServerAccessKit::_ensure_node(const RID &p_id, 
 			accesskit_node_set_state_description(p_ae->node, p_ae->state_description.utf8().ptr());
 		}
 
-		if (!p_ae->description.is_empty()) {
-			accesskit_node_set_description(p_ae->node, p_ae->description.utf8().ptr());
+		// Expose the combined description (control description + tooltip, with deduplication).
+		// For Label role, UIA_Name comes from value; for others, from name.
+		String effective_name = p_ae->name;
+		if (p_ae->role == ACCESSKIT_ROLE_LABEL && p_ae->value.get_type() == Variant::STRING) {
+			effective_name = p_ae->value;
+		}
+		String effective_desc = p_ae->get_effective_description(effective_name);
+		if (!effective_desc.is_empty()) {
+			accesskit_node_set_description(p_ae->node, effective_desc.utf8().ptr());
 		}
 
 		if (!p_ae->tooltip.is_empty()) {
@@ -1124,6 +1131,20 @@ void AccessibilityServerAccessKit::update_set_name(const RID &p_id, const String
 	} else {
 		accesskit_node_clear_label(ae->node);
 	}
+
+	// Recalculate the effective description since the name changed (deduplication
+	// depends on the name). This is needed because _ensure_node may have re-applied
+	// the description with the old name before ae->name was updated.
+	String effective_name = ae->name;
+	if (ae->role == ACCESSKIT_ROLE_LABEL && ae->value.get_type() == Variant::STRING) {
+		effective_name = ae->value;
+	}
+	String effective_desc = ae->get_effective_description(effective_name);
+	if (!effective_desc.is_empty()) {
+		accesskit_node_set_description(ae->node, effective_desc.utf8().ptr());
+	} else {
+		accesskit_node_clear_description(ae->node);
+	}
 }
 
 void AccessibilityServerAccessKit::update_set_braille_label(const RID &p_id, const String &p_name) {
@@ -1178,8 +1199,14 @@ void AccessibilityServerAccessKit::update_set_description(const RID &p_id, const
 	_ensure_node(p_id, ae);
 
 	ae->description = p_description;
-	if (!p_description.is_empty()) {
-		accesskit_node_set_description(ae->node, p_description.utf8().ptr());
+	// Expose the combined description (control description + tooltip, with deduplication).
+	String effective_name = ae->name;
+	if (ae->role == ACCESSKIT_ROLE_LABEL && ae->value.get_type() == Variant::STRING) {
+		effective_name = ae->value;
+	}
+	String effective_desc = ae->get_effective_description(effective_name);
+	if (!effective_desc.is_empty()) {
+		accesskit_node_set_description(ae->node, effective_desc.utf8().ptr());
 	} else {
 		accesskit_node_clear_description(ae->node);
 	}
@@ -1221,14 +1248,11 @@ void AccessibilityServerAccessKit::update_set_tooltip(const RID &p_id, const Str
 
 	if (!p_tooltip.is_empty()) {
 		// Create hidden child element with ROLE_TOOLTIP per W3C ARIA tooltip pattern.
-		// The tooltip is a separate element with role="tooltip", linked to the control
-		// via aria-describedby (UIA DescribedBy relationship).
 		RID tooltip_rid = create_sub_element(p_id, AccessibilityServerEnums::ROLE_TOOLTIP);
 		AccessibilityElement *tooltip_ae = rid_owner.get_or_null(tooltip_rid);
 		if (tooltip_ae) {
 			tooltip_ae->name = p_tooltip;
 			accesskit_node_set_label(tooltip_ae->node, p_tooltip.utf8().ptr());
-			// Hide visually - screen readers still read it via describedby relationship.
 			accesskit_node_set_hidden(tooltip_ae->node);
 		}
 		ae->tooltip_element = tooltip_rid;
@@ -1236,12 +1260,29 @@ void AccessibilityServerAccessKit::update_set_tooltip(const RID &p_id, const Str
 		// Add describedby relationship: control → tooltip.
 		ae->relations.push_back({ AccessibilityElement::RELATION_DESCRIBED_BY, tooltip_rid });
 
-		// Also set HelpText on the control for UIA (NVDA reads this on focus).
-		ae->placeholder = p_tooltip;
-		accesskit_node_set_placeholder(ae->node, p_tooltip.utf8().ptr());
+		// Expose tooltip via FullDescription (UIA_FullDescriptionPropertyId).
+		// NVDA reads FullDescription on focus by default (reportObjectDescriptions=true).
+		// AccessKit's tooltip() is a no-op on Windows, and placeholder() (HelpText) is
+		// filtered to only empty text inputs, so FullDescription is the only way.
+		// get_effective_description() handles deduplication with the name to avoid
+		// "name name" announcements.
+		String effective_name = ae->name;
+		if (ae->role == ACCESSKIT_ROLE_LABEL && ae->value.get_type() == Variant::STRING) {
+			effective_name = ae->value;
+		}
+		String effective_desc = ae->get_effective_description(effective_name);
+		if (!effective_desc.is_empty()) {
+			accesskit_node_set_description(ae->node, effective_desc.utf8().ptr());
+		} else {
+			accesskit_node_clear_description(ae->node);
+		}
 	} else {
-		ae->placeholder.clear();
-		accesskit_node_clear_placeholder(ae->node);
+		// Tooltip cleared: expose only the control's own description.
+		if (!ae->description.is_empty()) {
+			accesskit_node_set_description(ae->node, ae->description.utf8().ptr());
+		} else {
+			accesskit_node_clear_description(ae->node);
+		}
 	}
 }
 
@@ -2057,6 +2098,7 @@ void AccessibilityServerAccessKit::update_set_placeholder(const RID &p_id, const
 	ERR_FAIL_NULL(ae);
 	_ensure_node(p_id, ae);
 
+	ae->placeholder = p_placeholder;
 	if (!p_placeholder.is_empty()) {
 		accesskit_node_set_placeholder(ae->node, p_placeholder.utf8().ptr());
 	} else {
