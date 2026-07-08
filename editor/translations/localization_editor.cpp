@@ -843,6 +843,7 @@ LocalizationEditor::LocalizationEditor() {
 		translation_remap_options = memnew(Tree);
 		translation_remap_options->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 		translation_remap_options->set_theme_type_variation("TreeTable");
+		translation_remap_options->set_accessibility_as_grid(true);
 		translation_remap_options->set_hide_folding(true);
 		translation_remap_options->set_columns(2);
 		translation_remap_options->set_column_title(0, TTRC("Path"));

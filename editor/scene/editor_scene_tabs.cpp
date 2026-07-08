@@ -78,7 +78,7 @@ void EditorSceneTabs::_notification(int p_what) {
 
 		case NOTIFICATION_LAYOUT_DIRECTION_CHANGED:
 		case NOTIFICATION_TRANSLATION_CHANGED: {
-			_update_tab_titles();
+			_scene_tabs_resized();
 		} break;
 	}
 }
@@ -132,8 +132,7 @@ void EditorSceneTabs::_scene_tab_input(const Ref<InputEvent> &p_input) {
 	Ref<InputEventMouseButton> mb = p_input;
 
 	if (mb.is_valid()) {
-		int tab_idx = scene_tabs->get_tab_idx_at_point(mb->get_position());
-		if (tab_idx < 0 && mb->get_button_index() == MouseButton::LEFT && mb->is_double_click()) {
+		if (scene_tabs->get_hovered_tab() < 0 && mb->get_button_index() == MouseButton::LEFT && mb->is_double_click()) {
 			int tab_buttons = 0;
 			if (scene_tabs->get_offset_buttons_visible()) {
 				tab_buttons = get_theme_icon(SNAME("increment"), SNAME("TabBar"))->get_width() + get_theme_icon(SNAME("decrement"), SNAME("TabBar"))->get_width();
@@ -144,11 +143,39 @@ void EditorSceneTabs::_scene_tab_input(const Ref<InputEvent> &p_input) {
 			}
 		} else if (mb->get_button_index() == MouseButton::RIGHT && mb->is_pressed()) {
 			// Context menu.
-			_update_context_menu(tab_idx);
+			_update_context_menu();
 
 			scene_tabs_context_menu->set_position(scene_tabs->get_screen_position() + mb->get_position());
 			scene_tabs_context_menu->reset_size();
 			scene_tabs_context_menu->popup();
+		}
+		return;
+	}
+
+	// Keyboard accessibility: open the context menu for the currently focused tab
+	// when the user presses the Applications key or Shift+F10, mirroring the right-click
+	// behavior. Without this, the context menu would only open with the mouse, leaving
+	// screen-reader and keyboard users without a way to access it.
+	Ref<InputEventKey> key = p_input;
+	if (key.is_valid() && key->is_pressed() && !key->is_echo()) {
+		const bool applications_key = key->get_keycode() == Key::MENU;
+		const bool shift_f10 = key->get_keycode() == Key::F10 && key->is_shift_pressed();
+		if (applications_key || shift_f10) {
+			// Build the menu for the currently focused tab instead of the hovered one,
+			// since the user is invoking it from the keyboard and may not have a tab
+			// hovered with the mouse.
+			const int current = scene_tabs->get_current_tab();
+			_update_context_menu(current);
+			// Position the menu below the current tab so it visually attaches to it.
+			if (scene_tabs->get_tab_count() > 0 && current >= 0) {
+				Rect2 tab_rect = scene_tabs->get_tab_rect(current);
+				scene_tabs_context_menu->set_position(scene_tabs->get_screen_position() + tab_rect.position + Vector2(0, tab_rect.size.height));
+			} else {
+				scene_tabs_context_menu->set_position(scene_tabs->get_screen_position());
+			}
+			scene_tabs_context_menu->reset_size();
+			scene_tabs_context_menu->popup();
+			accept_event();
 		}
 	}
 }
@@ -169,7 +196,7 @@ void EditorSceneTabs::_reposition_active_tab(int p_to_index) {
 	update_scene_tabs();
 }
 
-void EditorSceneTabs::_update_context_menu(int p_index) {
+void EditorSceneTabs::_update_context_menu(int p_tab_override) {
 #define DISABLE_LAST_OPTION_IF(m_condition) \
 	if (m_condition) { \
 		scene_tabs_context_menu->set_item_disabled(-1, true); \
@@ -178,7 +205,7 @@ void EditorSceneTabs::_update_context_menu(int p_index) {
 	scene_tabs_context_menu->clear();
 	scene_tabs_context_menu->reset_size();
 
-	int tab_id = p_index;
+	int tab_id = p_tab_override >= 0 ? p_tab_override : scene_tabs->get_hovered_tab();
 	bool no_root_node = !EditorNode::get_editor_data().get_edited_scene_root(tab_id);
 
 	scene_tabs_context_menu->add_shortcut(ED_GET_SHORTCUT("editor/new_scene"), EditorNode::SCENE_NEW_SCENE);
@@ -439,6 +466,10 @@ int EditorSceneTabs::get_current_tab() const {
 	return scene_tabs->get_current_tab();
 }
 
+void EditorSceneTabs::grab_focus() {
+	scene_tabs->grab_focus();
+}
+
 void EditorSceneTabs::_project_settings_changed() {
 	if (ProjectSettings::get_singleton()->check_changed_settings_in_group("application/run/main_scene")) {
 		update_scene_tabs();
@@ -459,6 +490,8 @@ EditorSceneTabs::EditorSceneTabs() {
 	tabbar_panel = memnew(PanelContainer);
 	add_child(tabbar_panel);
 	tabbar_container = memnew(HBoxContainer);
+	tabbar_container->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	tabbar_container->set_accessibility_name(TTRC("Scene tabs"));
 	tabbar_panel->add_child(tabbar_container);
 
 	scene_tabs = memnew(TabBar);

@@ -80,6 +80,7 @@ protected:
 	Size2 get_minimum_size() const override;
 	virtual void _queue_update_size_cache() override;
 	virtual String _get_translated_text(const String &p_text) const override;
+	virtual String _get_accessibility_name() const override;
 
 	void _notification(int p_what);
 	bool _set(const StringName &p_name, const Variant &p_value);
@@ -91,6 +92,8 @@ protected:
 	static void _bind_methods();
 
 	virtual void shortcut_input(const Ref<InputEvent> &p_event) override;
+
+	virtual AccessibilityServerEnums::AccessibilityRole get_accessibility_default_role() const override;
 
 public:
 	// ATTENTION: This is used by the POT generator's scene parser. If the number of properties returned by `_get_items()` ever changes,

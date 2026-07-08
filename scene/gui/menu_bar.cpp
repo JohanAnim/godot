@@ -59,7 +59,7 @@ void MenuBar::gui_input(const Ref<InputEvent> &p_event) {
 
 		if (selected_menu != new_sel) {
 			selected_menu = new_sel;
-			focused_menu = selected_menu;
+			_set_focused_menu(selected_menu);
 			if (active_menu >= 0) {
 				get_menu_popup(active_menu)->hide();
 			}
@@ -81,7 +81,7 @@ void MenuBar::gui_input(const Ref<InputEvent> &p_event) {
 
 		if (selected_menu != new_sel) {
 			selected_menu = new_sel;
-			focused_menu = selected_menu;
+			_set_focused_menu(selected_menu);
 			if (active_menu >= 0) {
 				get_menu_popup(active_menu)->hide();
 			}
@@ -90,7 +90,7 @@ void MenuBar::gui_input(const Ref<InputEvent> &p_event) {
 		return;
 	} else if (p_event->is_action("ui_accept", true) && p_event->is_pressed()) {
 		if (focused_menu == -1) {
-			focused_menu = 0;
+			_set_focused_menu(0);
 		}
 		selected_menu = focused_menu;
 		if (active_menu >= 0) {
@@ -102,7 +102,7 @@ void MenuBar::gui_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseMotion> mm = p_event;
 	if (mm.is_valid()) {
 		int old_sel = selected_menu;
-		focused_menu = _get_index_at_point(mm->get_position());
+		_set_focused_menu(_get_index_at_point(mm->get_position()));
 		if (focused_menu >= 0) {
 			selected_menu = focused_menu;
 		}
@@ -130,6 +130,8 @@ void MenuBar::_open_popup(int p_index, bool p_focus_item) {
 		pm->hide();
 		return;
 	}
+
+	last_activated_menu = p_index;
 
 	Rect2 item_rect = _get_menu_item_rect(p_index);
 	item_rect.position *= get_screen_transform().get_scale();
@@ -192,15 +194,17 @@ void MenuBar::shortcut_input(const Ref<InputEvent> &p_event) {
 void MenuBar::_popup_visibility_changed(bool p_visible) {
 	if (!p_visible) {
 		active_menu = -1;
-		focused_menu = -1;
+		_set_focused_menu(-1);
 		set_process_internal(false);
 		queue_redraw();
+		queue_accessibility_update();
 		return;
 	}
 
 	if (switch_on_hover) {
 		set_process_internal(true);
 	}
+	queue_accessibility_update();
 }
 
 bool MenuBar::is_native_menu() const {
@@ -301,7 +305,69 @@ void MenuBar::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_MENU_BAR);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_MENU_BAR);
+			}
+
+			Vector<PopupMenu *> popups = _get_popups();
+			for (int i = 0; i < menu_cache.size(); i++) {
+				Menu &menu = menu_cache.write[i];
+				if (menu.hidden) {
+					if (menu.accessibility_element.is_valid()) {
+						AccessibilityServer::get_singleton()->free_element(menu.accessibility_element);
+						menu.accessibility_element = RID();
+					}
+					continue;
+				}
+
+				if (menu.accessibility_element.is_null()) {
+					menu.accessibility_element = AccessibilityServer::get_singleton()->create_sub_element(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_MENU_ITEM);
+				} else {
+					AccessibilityServer::get_singleton()->element_set_parent(menu.accessibility_element, ae);
+				}
+
+				AccessibilityServer::get_singleton()->update_set_name(menu.accessibility_element, atr(menu.name));
+				AccessibilityServer::get_singleton()->update_set_flag(menu.accessibility_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, menu.disabled);
+				AccessibilityServer::get_singleton()->update_set_popup_type(menu.accessibility_element, AccessibilityServerEnums::AccessibilityPopupType::POPUP_MENU);
+
+				Rect2 item_rect = _get_menu_item_rect(i);
+				AccessibilityServer::get_singleton()->update_set_bounds(menu.accessibility_element, item_rect);
+
+				// Automation ID setting for the menu item
+				String clean_menu_name = menu.name.replace(" ", "_").replace("@", "");
+				String menu_id = get_class() + "_" + get_name() + "_Menu_" + (clean_menu_name.is_empty() ? itos(i) : clean_menu_name);
+				AccessibilityServer::get_singleton()->update_set_author_id(menu.accessibility_element, menu_id);
+
+				// Check if the menu's popup is currently open
+				bool is_open = (active_menu == i) && (i < popups.size()) && popups[i]->is_visible();
+				// 0 = none, 1 = collapsed (false), 2 = expanded (true)
+				AccessibilityServer::get_singleton()->update_set_expanded(menu.accessibility_element, is_open ? 2 : 1);
+				AccessibilityServer::get_singleton()->update_set_state_description(menu.accessibility_element, is_open ? atr("expanded") : atr("collapsed"));
+
+				if (i < popups.size()) {
+					if (popups[i]->get_accessibility_element().is_valid()) {
+						if (is_open) {
+							popups[i]->set_accessibility_name(atr(menu.name));
+							AccessibilityServer::get_singleton()->element_set_parent(popups[i]->get_accessibility_element(), menu.accessibility_element);
+						} else {
+							AccessibilityServer::get_singleton()->element_set_parent(popups[i]->get_accessibility_element(), RID());
+						}
+					}
+				}
+
+				// Add actions
+				AccessibilityServer::get_singleton()->update_add_action(menu.accessibility_element, AccessibilityServerEnums::AccessibilityAction::ACTION_CLICK, callable_mp(this, &MenuBar::_accessibility_action_menu_click).bind(i));
+				AccessibilityServer::get_singleton()->update_add_action(menu.accessibility_element, AccessibilityServerEnums::AccessibilityAction::ACTION_EXPAND, callable_mp(this, &MenuBar::_accessibility_action_menu_expand).bind(i));
+				AccessibilityServer::get_singleton()->update_add_action(menu.accessibility_element, AccessibilityServerEnums::AccessibilityAction::ACTION_COLLAPSE, callable_mp(this, &MenuBar::_accessibility_action_menu_collapse).bind(i));
+			}
+		} break;
+		case NOTIFICATION_ACCESSIBILITY_INVALIDATE: {
+			for (int i = 0; i < menu_cache.size(); i++) {
+				if (menu_cache[i].accessibility_element.is_valid()) {
+					AccessibilityServer::get_singleton()->free_element(menu_cache[i].accessibility_element);
+					menu_cache.write[i].accessibility_element = RID();
+				}
+			}
 		} break;
 		case NOTIFICATION_ENTER_TREE: {
 			if (get_menu_count() > 0) {
@@ -315,7 +381,7 @@ void MenuBar::_notification(int p_what) {
 			unbind_global_menu();
 		} break;
 		case NOTIFICATION_MOUSE_EXIT: {
-			focused_menu = -1;
+			_set_focused_menu(-1);
 			selected_menu = -1;
 			queue_redraw();
 		} break;
@@ -382,7 +448,7 @@ void MenuBar::_notification(int p_what) {
 			int index = _get_index_at_point(pos);
 			if (index >= 0 && index != active_menu) {
 				selected_menu = index;
-				focused_menu = selected_menu;
+				_set_focused_menu(selected_menu);
 				if (active_menu >= 0) {
 					get_menu_popup(active_menu)->hide();
 				}
@@ -1004,6 +1070,47 @@ String MenuBar::get_tooltip(const Point2 &p_pos) const {
 MenuBar::MenuBar() {
 	set_focus_mode(FOCUS_ACCESSIBILITY);
 	set_process_shortcut_input(true);
+}
+
+void MenuBar::open_menu(int p_menu) {
+	ERR_FAIL_INDEX(p_menu, (int)menu_cache.size());
+	selected_menu = p_menu;
+	_set_focused_menu(p_menu);
+	_open_popup(p_menu, true);
+}
+
+void MenuBar::_accessibility_action_menu_click(const Variant &p_data, int p_idx) {
+	_open_popup(p_idx, true);
+}
+
+void MenuBar::_accessibility_action_menu_expand(const Variant &p_data, int p_idx) {
+	if (active_menu != p_idx) {
+		_open_popup(p_idx, true);
+	}
+}
+
+void MenuBar::_accessibility_action_menu_collapse(const Variant &p_data, int p_idx) {
+	Vector<PopupMenu *> popups = _get_popups();
+	if (active_menu == p_idx && p_idx < popups.size() && popups[p_idx]->is_visible()) {
+		popups[p_idx]->hide();
+	}
+}
+
+RID MenuBar::get_focused_accessibility_element() const {
+	if (focused_menu >= 0 && focused_menu < menu_cache.size()) {
+		if (menu_cache[focused_menu].accessibility_element.is_valid()) {
+			return menu_cache[focused_menu].accessibility_element;
+		}
+	}
+	return Control::get_focused_accessibility_element();
+}
+
+void MenuBar::_set_focused_menu(int p_menu) {
+	if (focused_menu == p_menu) {
+		return;
+	}
+	focused_menu = p_menu;
+	queue_accessibility_update();
 }
 
 MenuBar::~MenuBar() {

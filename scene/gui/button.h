@@ -121,6 +121,7 @@ protected:
 	static void _bind_methods();
 
 	virtual String _get_accessibility_name() const override;
+	virtual AccessibilityServerEnums::AccessibilityRole get_accessibility_default_role() const override;
 
 public:
 	virtual Size2 get_minimum_size() const override;

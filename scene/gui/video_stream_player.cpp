@@ -135,7 +135,9 @@ void VideoStreamPlayer::_notification(int p_notification) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_VIDEO);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_VIDEO);
+			}
 		} break;
 
 		case NOTIFICATION_ENTER_TREE: {

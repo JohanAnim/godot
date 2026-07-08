@@ -107,13 +107,14 @@ void MenuButton::show_popup() {
 	// If not triggered by the mouse, start the popup with its first enabled item focused.
 	if (!_was_pressed_by_mouse()) {
 		for (int i = 0; i < popup->get_item_count(); i++) {
-			if (!popup->is_item_disabled(i)) {
+			if (!popup->is_item_disabled(i) && !popup->is_item_separator(i) && popup->is_item_visible(i)) {
 				popup->set_focused_item(i);
 				break;
 			}
 		}
 	}
 
+	popup->activated_by_keyboard = !_was_pressed_by_mouse();
 	popup->popup();
 }
 
@@ -146,8 +147,24 @@ void MenuButton::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_BUTTON);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_BUTTON);
+			}
 			AccessibilityServer::get_singleton()->update_set_popup_type(ae, AccessibilityServerEnums::AccessibilityPopupType::POPUP_MENU);
+
+			// 0 = none, 1 = collapsed (false), 2 = expanded (true)
+			bool is_open = popup && popup->is_visible();
+			AccessibilityServer::get_singleton()->update_set_expanded(ae, is_open ? 2 : 1);
+			AccessibilityServer::get_singleton()->update_set_state_description(ae, is_open ? atr("expanded") : atr("collapsed"));
+
+			if (popup && popup->get_accessibility_element().is_valid()) {
+				if (is_open) {
+					popup->set_accessibility_name(get_text());
+					AccessibilityServer::get_singleton()->element_set_parent(popup->get_accessibility_element(), ae);
+				} else {
+					AccessibilityServer::get_singleton()->element_set_parent(popup->get_accessibility_element(), RID());
+				}
+			}
 		} break;
 
 		case NOTIFICATION_TRANSLATION_CHANGED:

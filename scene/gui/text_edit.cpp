@@ -761,7 +761,9 @@ void TextEdit::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_MULTILINE_TEXT_FIELD);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_MULTILINE_TEXT_FIELD);
+			}
 			if (text.size() == 1 && text[0].is_empty()) {
 				AccessibilityServer::get_singleton()->update_set_placeholder(ae, atr(placeholder_text));
 			}

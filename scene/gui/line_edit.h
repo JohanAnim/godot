@@ -283,6 +283,7 @@ protected:
 	void _notification(int p_what);
 	void _validate_property(PropertyInfo &p_property) const;
 	static void _bind_methods();
+	virtual AccessibilityServerEnums::AccessibilityRole get_accessibility_default_role() const override;
 
 #ifndef DISABLE_DEPRECATED
 	void _edit_bind_compat_111117();

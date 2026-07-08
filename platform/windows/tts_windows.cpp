@@ -44,7 +44,14 @@ TTS_Windows *TTS_Windows::get_singleton() {
 
 bool TTS_Windows::is_speaking() const {
 	if (driver) {
-		return driver->is_speaking();
+		if (driver->is_speaking()) {
+			return true;
+		}
+	}
+	if (sapi_driver && sapi_driver != driver) {
+		if (sapi_driver->is_speaking()) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -57,15 +64,68 @@ bool TTS_Windows::is_paused() const {
 }
 
 Array TTS_Windows::get_voices() const {
+	Array list;
+	HashMap<String, bool> seen_ids;
+
+	// Collect voices from the active speech driver.
 	if (driver) {
-		return driver->get_voices();
+		Array driver_voices = driver->get_voices();
+		for (int i = 0; i < driver_voices.size(); i++) {
+			Dictionary d = driver_voices[i];
+			String id = d["id"];
+			if (!seen_ids.has(id)) {
+				seen_ids[id] = true;
+				list.push_back(d);
+			}
+		}
 	}
-	return Array();
+
+	// Also collect voices from SAPI if it's a different driver (captures Vocaliser, etc.).
+	if (sapi_driver && sapi_driver != driver) {
+		Array sapi_voices = sapi_driver->get_voices();
+		for (int i = 0; i < sapi_voices.size(); i++) {
+			Dictionary d = sapi_voices[i];
+			String id = d["id"];
+			if (!seen_ids.has(id)) {
+				seen_ids[id] = true;
+				list.push_back(d);
+			}
+		}
+	}
+
+	return list;
 }
 
 void TTS_Windows::speak(const String &p_text, const String &p_voice, int p_volume, float p_pitch, float p_rate, int64_t p_utterance_id, bool p_interrupt) {
+	// Find which driver owns this voice ID.
+	TTSDriver *target = nullptr;
 	if (driver) {
-		driver->speak(p_text, p_voice, p_volume, p_pitch, p_rate, p_utterance_id, p_interrupt);
+		Array voices = driver->get_voices();
+		for (int i = 0; i < voices.size(); i++) {
+			Dictionary d = voices[i];
+			if (String(d["id"]) == p_voice) {
+				target = driver;
+				break;
+			}
+		}
+	}
+	// If active driver doesn't have this voice, try SAPI.
+	if (!target && sapi_driver && sapi_driver != driver) {
+		Array voices = sapi_driver->get_voices();
+		for (int i = 0; i < voices.size(); i++) {
+			Dictionary d = voices[i];
+			if (String(d["id"]) == p_voice) {
+				target = sapi_driver;
+				break;
+			}
+		}
+	}
+	// Fallback to active driver.
+	if (!target) {
+		target = driver;
+	}
+	if (target) {
+		target->speak(p_text, p_voice, p_volume, p_pitch, p_rate, p_utterance_id, p_interrupt);
 	}
 }
 
@@ -85,17 +145,31 @@ void TTS_Windows::stop() {
 	if (driver) {
 		driver->stop();
 	}
+	if (sapi_driver && sapi_driver != driver) {
+		sapi_driver->stop();
+	}
 }
 
 void TTS_Windows::process_events() {
 	if (driver) {
 		driver->process_events();
 	}
+	// Also process SAPI driver events if it's a different driver (voice may have been routed there).
+	if (sapi_driver && sapi_driver != driver) {
+		sapi_driver->process_events();
+	}
 }
 
 TTS_Windows::TTS_Windows() {
+	// Always initialize SAPI driver for voice enumeration (captures Vocaliser, etc.).
+	sapi_driver = memnew(TTSDriverSAPI);
+	if (!sapi_driver->init()) {
+		memdelete(sapi_driver);
+		sapi_driver = nullptr;
+	}
+
 #ifdef WINRT_ENABLED
-	// Try OneCore driver.
+	// Try OneCore driver for speech (modern Windows, better quality).
 	if (!driver) {
 		driver = memnew(TTSDriverOneCore);
 		if (!driver->init()) {
@@ -104,8 +178,10 @@ TTS_Windows::TTS_Windows() {
 		}
 	}
 #endif
-	// Try SAPI driver.
-	if (!driver) {
+	// Fall back to SAPI for speech if OneCore unavailable.
+	if (!driver && sapi_driver) {
+		driver = sapi_driver;
+	} else if (!driver) {
 		driver = memnew(TTSDriverSAPI);
 		if (!driver->init()) {
 			memdelete(driver);
@@ -115,7 +191,10 @@ TTS_Windows::TTS_Windows() {
 }
 
 TTS_Windows::~TTS_Windows() {
-	if (driver) {
+	if (driver && driver != sapi_driver) {
 		memdelete(driver);
+	}
+	if (sapi_driver) {
+		memdelete(sapi_driver);
 	}
 }

@@ -118,6 +118,7 @@ class PopupMenu : public Popup {
 	// To make Item available.
 	friend class OptionButton;
 	friend class MenuButton;
+	friend class MenuBar;
 
 	RID global_menu;
 	RID system_menu;
@@ -125,6 +126,7 @@ class PopupMenu : public Popup {
 	bool prefer_native = false;
 
 	bool activated_by_keyboard = false;
+	Point2i initial_mouse_screen_pos;
 
 	Timer *close_suspended_timer = nullptr;
 	bool close_was_suspended = false;
@@ -159,6 +161,8 @@ class PopupMenu : public Popup {
 	void _shape_item(int p_idx) const;
 
 	void _accessibility_action_click(const Variant &p_data, int p_idx);
+	void _accessibility_action_expand_item(const Variant &p_data, int p_idx);
+	void _accessibility_action_collapse_item(const Variant &p_data, int p_idx);
 
 	void _activate_submenu(int p_over, bool p_by_keyboard = false);
 	void _submenu_timeout();
@@ -386,6 +390,7 @@ public:
 	bool is_item_shortcut_disabled(int p_idx) const;
 	bool is_item_shortcut_global(int p_idx) const;
 	String get_item_tooltip(int p_idx) const;
+	bool is_item_visible(int p_idx) const;
 	Ref<Shortcut> get_item_shortcut(int p_idx) const;
 	int get_item_indent(int p_idx) const;
 	int get_item_max_states(int p_idx) const;
@@ -457,6 +462,7 @@ public:
 	bool get_shrink_width() const;
 
 	virtual void set_visible(bool p_visible) override;
+	Control *get_items_control() const { return (Control *)control; }
 
 	PopupMenu();
 	~PopupMenu();

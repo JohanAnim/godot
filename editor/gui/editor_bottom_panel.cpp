@@ -298,6 +298,8 @@ EditorBottomPanel::EditorBottomPanel() :
 	add_margin_valid_drop(SIDE_BOTTOM, EditorDock::DOCK_SLOT_BOTTOM_L);
 
 	bottom_hbox = memnew(HBoxContainer);
+	bottom_hbox->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	bottom_hbox->set_accessibility_name(TTRC("Bottom panel controls"));
 	bottom_hbox->set_mouse_filter(MOUSE_FILTER_IGNORE);
 	get_internal_container()->add_child(bottom_hbox);
 

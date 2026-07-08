@@ -902,6 +902,14 @@ void Window::_event_callback(DisplayServerEnums::WindowEvent p_event) {
 					}
 				}
 			}
+			// Do NOT call queue_accessibility_update or _accessibility_force_update
+			// here. Doing so causes the screen reader to re-announce the focused
+			// element on every focus change, which reads as the focus "jumping"
+			// to the parent window or a dialog instead of staying where the user
+			// left it. The existing window visibility flow (which calls
+			// _accessibility_notify_enter / _accessibility_force_update when the
+			// window is actually shown) already covers the cases where a forced
+			// update is truly required.
 		} break;
 		case DisplayServerEnums::WINDOW_EVENT_FOCUS_OUT: {
 			focused = false;
@@ -910,6 +918,7 @@ void Window::_event_callback(DisplayServerEnums::WindowEvent p_event) {
 			}
 			_propagate_window_notification(this, NOTIFICATION_WM_WINDOW_FOCUS_OUT);
 			emit_signal(SceneStringName(focus_exited));
+			// Same reasoning as FOCUS_IN: do not force an accessibility update here.
 		} break;
 		case DisplayServerEnums::WINDOW_EVENT_CLOSE_REQUEST: {
 			if (exclusive_child != nullptr) {
@@ -1028,6 +1037,10 @@ void Window::set_visible(bool p_visible) {
 
 	// Stop any queued resizing, as the window will be resized right now.
 	updating_child_controls = false;
+
+	if (transient_parent && !visible) {
+		_set_transient_exclusive_child(true);
+	}
 
 	Viewport *embedder_vp = get_embedder();
 

@@ -628,6 +628,11 @@ void InspectorDock::update(Object *p_object) {
 	}
 }
 
+void InspectorDock::focus_search() {
+	search->grab_focus();
+	search->select_all();
+}
+
 void InspectorDock::go_back() {
 	_edit_back();
 }

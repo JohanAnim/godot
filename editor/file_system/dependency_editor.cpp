@@ -321,7 +321,7 @@ void DependencyEditor::_update_list() {
 		item->set_text((int)Column::TYPE, type);
 		item->set_text((int)Column::NAME, name);
 		item->set_text((int)Column::PATH, path);
-		item->add_button((int)Column::PATH, folder, 0);
+		item->add_button((int)Column::PATH, folder, 0, false, TTRC("Browse"));
 	}
 
 	fixdeps->set_disabled(!broken);
@@ -367,6 +367,7 @@ DependencyEditor::DependencyEditor() {
 	tree = memnew(Tree);
 	tree->set_auto_translate_mode(AUTO_TRANSLATE_MODE_DISABLED);
 	tree->set_theme_type_variation("TreeTable");
+	tree->set_accessibility_as_grid(true);
 	tree->set_hide_folding(true);
 	tree->set_columns((int)Column::MAX);
 	tree->set_column_titles_visible(true);
@@ -1213,6 +1214,7 @@ OrphanResourcesDialog::OrphanResourcesDialog() {
 	files = memnew(Tree);
 	files->set_auto_translate_mode(AUTO_TRANSLATE_MODE_DISABLED);
 	files->set_theme_type_variation("TreeTable");
+	files->set_accessibility_as_grid(true);
 	files->set_columns(2);
 	files->set_column_titles_visible(true);
 	files->set_column_custom_minimum_width(1, 100 * EDSCALE);

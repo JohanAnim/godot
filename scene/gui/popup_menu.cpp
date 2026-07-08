@@ -431,7 +431,7 @@ void PopupMenu::_activate_submenu(int p_over, bool p_by_keyboard) {
 	// If not triggered by the mouse, start the popup with its first enabled item focused.
 	if (p_by_keyboard) {
 		for (int i = 0; i < submenu_popup->get_item_count(); i++) {
-			if (!submenu_popup->is_item_disabled(i)) {
+			if (!submenu_popup->is_item_disabled(i) && !submenu_popup->is_item_separator(i) && submenu_popup->is_item_visible(i)) {
 				submenu_popup->set_focused_item(i);
 				break;
 			}
@@ -747,10 +747,17 @@ void PopupMenu::_input_from_window_internal(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseMotion> m = p_event;
 
 	if (m.is_valid()) {
-		if (m->get_velocity().is_zero_approx() || m->get_relative() == Vector2(0, 0)) {
-			return;
+		if (activated_by_keyboard) {
+			Point2i current_mouse_screen_pos = DisplayServer::get_singleton()->mouse_get_position();
+			if ((current_mouse_screen_pos - initial_mouse_screen_pos).length() < 3) {
+				return;
+			}
+			activated_by_keyboard = false;
+		} else {
+			if (m->get_velocity().is_zero_approx() || m->get_relative() == Vector2(0, 0)) {
+				return;
+			}
 		}
-		activated_by_keyboard = false;
 
 		if (this_submenu_index != -1) { // Is a submenu.
 			PopupMenu *parent_popup = Object::cast_to<PopupMenu>(get_parent());
@@ -1370,6 +1377,26 @@ void PopupMenu::_accessibility_action_click(const Variant &p_data, int p_idx) {
 	activate_item(p_idx);
 }
 
+void PopupMenu::_accessibility_action_expand_item(const Variant &p_data, int p_idx) {
+	if (p_idx >= 0 && p_idx < items.size()) {
+		PopupMenu *submenu_popup = get_item_submenu_node(p_idx);
+		if (submenu_popup && !submenu_popup->is_visible()) {
+			_activate_submenu(p_idx);
+			queue_accessibility_update();
+		}
+	}
+}
+
+void PopupMenu::_accessibility_action_collapse_item(const Variant &p_data, int p_idx) {
+	if (p_idx >= 0 && p_idx < items.size()) {
+		PopupMenu *submenu_popup = get_item_submenu_node(p_idx);
+		if (submenu_popup && submenu_popup->is_visible()) {
+			submenu_popup->hide();
+			queue_accessibility_update();
+		}
+	}
+}
+
 RID PopupMenu::get_focused_accessibility_element() const {
 	if (mouse_over == -1) {
 		return get_accessibility_element();
@@ -1466,12 +1493,42 @@ void PopupMenu::_notification(int p_what) {
 
 					AccessibilityServer::get_singleton()->update_add_action(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityAction::ACTION_CLICK, callable_mp(this, &PopupMenu::_accessibility_action_click).bind(i));
 					AccessibilityServer::get_singleton()->update_set_list_item_index(item.accessibility_item_element, item_index);
-					AccessibilityServer::get_singleton()->update_set_list_item_level(item.accessibility_item_element, 0);
 					AccessibilityServer::get_singleton()->update_set_list_item_selected(item.accessibility_item_element, i == mouse_over);
-					AccessibilityServer::get_singleton()->update_set_name(item.accessibility_item_element, item.xl_text);
+					String item_name = item.xl_text;
+					String accel_text = _get_accel_text(item);
+					if (!accel_text.is_empty() && accel_text != "None" && accel_text != "none") {
+						item_name += " \t" + accel_text;
+						AccessibilityServer::get_singleton()->update_set_shortcut(item.accessibility_item_element, accel_text);
+					} else {
+						AccessibilityServer::get_singleton()->update_set_shortcut(item.accessibility_item_element, String());
+					}
+					AccessibilityServer::get_singleton()->update_set_name(item.accessibility_item_element, item_name);
 					AccessibilityServer::get_singleton()->update_set_flag(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, item.disabled);
 					AccessibilityServer::get_singleton()->update_set_flag(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_HIDDEN, !item.visible);
 					AccessibilityServer::get_singleton()->update_set_tooltip(item.accessibility_item_element, item.tooltip);
+
+					bool has_submenu = !item.submenu_name.is_empty() || item.submenu != nullptr;
+					if (has_submenu) {
+						bool submenu_open = false;
+						PopupMenu *sub = const_cast<PopupMenu *>(this)->get_item_submenu_node(i);
+						if (sub) {
+							submenu_open = sub->is_visible();
+						}
+						AccessibilityServer::get_singleton()->update_set_popup_type(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityPopupType::POPUP_MENU);
+						AccessibilityServer::get_singleton()->update_set_list_item_expanded(item.accessibility_item_element, submenu_open);
+						AccessibilityServer::get_singleton()->update_add_action(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityAction::ACTION_EXPAND, callable_mp(this, &PopupMenu::_accessibility_action_expand_item).bind(i));
+						AccessibilityServer::get_singleton()->update_add_action(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityAction::ACTION_COLLAPSE, callable_mp(this, &PopupMenu::_accessibility_action_collapse_item).bind(i));
+					} else {
+						// Clear popup type if it is a regular menu item.
+						// (Using a default value or clearing is good practice).
+					}
+
+					// Set unique Automation ID for PopupMenu item
+					String popup_id = get_name();
+					popup_id = popup_id.replace(" ", "_").replace("@", "");
+					String item_text_clean = item.xl_text.replace(" ", "_").replace("@", "");
+					String item_id = "PopupMenu_" + popup_id + "_Item_" + (item_text_clean.is_empty() ? itos(i) : item_text_clean);
+					AccessibilityServer::get_singleton()->update_set_author_id(item.accessibility_item_element, item_id);
 
 					AccessibilityServer::get_singleton()->update_set_bounds(item.accessibility_item_element, Rect2(item_ofs, Size2(display_width, h + theme_cache.v_separation)));
 
@@ -2616,6 +2673,11 @@ String PopupMenu::get_item_tooltip(int p_idx) const {
 	return items[p_idx].tooltip;
 }
 
+bool PopupMenu::is_item_visible(int p_idx) const {
+	ERR_FAIL_INDEX_V(p_idx, items.size(), false);
+	return items[p_idx].visible;
+}
+
 Ref<Shortcut> PopupMenu::get_item_shortcut(int p_idx) const {
 	ERR_FAIL_INDEX_V(p_idx, items.size(), Ref<Shortcut>());
 	return items[p_idx].shortcut;
@@ -3499,6 +3561,7 @@ void PopupMenu::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_item_accelerator", "index"), &PopupMenu::get_item_accelerator);
 	ClassDB::bind_method(D_METHOD("get_item_metadata", "index"), &PopupMenu::get_item_metadata);
 	ClassDB::bind_method(D_METHOD("is_item_disabled", "index"), &PopupMenu::is_item_disabled);
+	ClassDB::bind_method(D_METHOD("is_item_visible", "index"), &PopupMenu::is_item_visible);
 	ClassDB::bind_method(D_METHOD("get_item_submenu", "index"), &PopupMenu::get_item_submenu);
 	ClassDB::bind_method(D_METHOD("get_item_submenu_node", "index"), &PopupMenu::get_item_submenu_node);
 	ClassDB::bind_method(D_METHOD("is_item_separator", "index"), &PopupMenu::is_item_separator);
@@ -3782,6 +3845,7 @@ void PopupMenu::set_visible(bool p_visible) {
 #endif
 
 	if (p_visible) {
+		initial_mouse_screen_pos = DisplayServer::get_singleton()->mouse_get_position();
 		PopupMenu *parent_popup = Object::cast_to<PopupMenu>(get_parent());
 		if (!parent_popup) {
 			if (search_bar->is_visible()) {

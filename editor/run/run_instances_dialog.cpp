@@ -381,6 +381,7 @@ RunInstancesDialog::RunInstancesDialog() {
 	instance_tree = memnew(Tree);
 	instance_tree->set_h_scroll_enabled(false);
 	instance_tree->set_theme_type_variation("TreeTable");
+	instance_tree->set_accessibility_as_grid(true);
 	instance_tree->set_hide_folding(true);
 	instance_tree->set_columns(4);
 	instance_tree->set_column_titles_visible(true);

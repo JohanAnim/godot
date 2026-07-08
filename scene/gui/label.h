@@ -110,6 +110,7 @@ protected:
 
 	void _notification(int p_what);
 	static void _bind_methods();
+	virtual AccessibilityServerEnums::AccessibilityRole get_accessibility_default_role() const override;
 #ifndef DISABLE_DEPRECATED
 	bool _set(const StringName &p_name, const Variant &p_value);
 #endif

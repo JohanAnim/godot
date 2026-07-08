@@ -83,7 +83,7 @@ private:
 
 	void _update_tab_titles();
 	void _reposition_active_tab(int p_to_index);
-	void _update_context_menu(int p_index);
+	void _update_context_menu(int p_tab_override = -1);
 	void _custom_menu_option(int p_option);
 	void _update_scene_list();
 
@@ -105,6 +105,7 @@ public:
 	static EditorSceneTabs *get_singleton() { return singleton; }
 
 	void add_extra_button(Button *p_button);
+	void grab_focus();
 
 	void set_current_tab(int p_tab);
 	int get_current_tab() const;

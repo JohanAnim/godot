@@ -577,6 +577,7 @@ void Control::_validate_property(PropertyInfo &p_property) const {
 	if (Engine::get_singleton()->is_editor_hint() && p_property.name == "scale") {
 		p_property.hint = PROPERTY_HINT_LINK;
 	}
+
 	// Validate which positioning properties should be displayed depending on the parent and the layout mode.
 	Control *parent_control = get_parent_control();
 	bool is_anchor_offset_property_name = p_property.name.begins_with("offset_") && !p_property.name.begins_with("offset_transform_");
@@ -2875,6 +2876,202 @@ String Control::get_accessibility_description() const {
 	return tr(data.accessibility_description);
 }
 
+void Control::set_accessibility_automation_id(const String &p_automation_id) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_automation_id != p_automation_id) {
+		data.accessibility_automation_id = p_automation_id;
+		queue_accessibility_update();
+	}
+}
+
+String Control::get_accessibility_automation_id() const {
+	return data.accessibility_automation_id;
+}
+
+void Control::set_accessibility_role(AccessibilityServerEnums::AccessibilityRole p_role) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_role != p_role) {
+		data.accessibility_role = p_role;
+		queue_accessibility_update();
+	}
+}
+
+AccessibilityServerEnums::AccessibilityRole Control::get_accessibility_role() const {
+	return data.accessibility_role;
+}
+
+AccessibilityServerEnums::AccessibilityRole Control::get_accessibility_default_role() const {
+	return AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN;
+}
+
+void Control::set_accessibility_state_expanded(int p_expanded) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_expanded != p_expanded) {
+		data.accessibility_state_expanded = p_expanded;
+		queue_accessibility_update();
+	}
+}
+
+int Control::get_accessibility_state_expanded() const {
+	return data.accessibility_state_expanded;
+}
+
+void Control::set_accessibility_state_selected(int p_selected) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_selected != p_selected) {
+		data.accessibility_state_selected = p_selected;
+		queue_accessibility_update();
+	}
+}
+
+int Control::get_accessibility_state_selected() const {
+	return data.accessibility_state_selected;
+}
+
+void Control::set_accessibility_state_checked(int p_checked) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_checked != p_checked) {
+		data.accessibility_state_checked = p_checked;
+		queue_accessibility_update();
+	}
+}
+
+int Control::get_accessibility_state_checked() const {
+	return data.accessibility_state_checked;
+}
+
+void Control::set_accessibility_state_disabled(bool p_disabled) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_disabled != p_disabled) {
+		data.accessibility_state_disabled = p_disabled;
+		queue_accessibility_update();
+	}
+}
+
+bool Control::is_accessibility_state_disabled() const {
+	return data.accessibility_state_disabled;
+}
+
+void Control::set_accessibility_state_readonly(bool p_readonly) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_readonly != p_readonly) {
+		data.accessibility_state_readonly = p_readonly;
+		queue_accessibility_update();
+	}
+}
+
+bool Control::is_accessibility_state_readonly() const {
+	return data.accessibility_state_readonly;
+}
+
+void Control::set_accessibility_state_hidden(bool p_hidden) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_hidden != p_hidden) {
+		data.accessibility_state_hidden = p_hidden;
+		queue_accessibility_update();
+	}
+}
+
+bool Control::is_accessibility_state_hidden() const {
+	return data.accessibility_state_hidden;
+}
+
+void Control::set_accessibility_state_busy(bool p_busy) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_busy != p_busy) {
+		data.accessibility_state_busy = p_busy;
+		queue_accessibility_update();
+	}
+}
+
+bool Control::is_accessibility_state_busy() const {
+	return data.accessibility_state_busy;
+}
+
+void Control::set_accessibility_state_required(bool p_required) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_required != p_required) {
+		data.accessibility_state_required = p_required;
+		queue_accessibility_update();
+	}
+}
+
+bool Control::is_accessibility_state_required() const {
+	return data.accessibility_state_required;
+}
+
+void Control::set_accessibility_state_modal(bool p_modal) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_modal != p_modal) {
+		data.accessibility_state_modal = p_modal;
+		queue_accessibility_update();
+	}
+}
+
+bool Control::is_accessibility_state_modal() const {
+	return data.accessibility_state_modal;
+}
+
+void Control::set_accessibility_state_haspopup(bool p_haspopup) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_haspopup != p_haspopup) {
+		data.accessibility_state_haspopup = p_haspopup;
+		queue_accessibility_update();
+	}
+}
+
+bool Control::is_accessibility_state_haspopup() const {
+	return data.accessibility_state_haspopup;
+}
+
+void Control::set_accessibility_state_multiselectable(bool p_multiselectable) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_multiselectable != p_multiselectable) {
+		data.accessibility_state_multiselectable = p_multiselectable;
+		queue_accessibility_update();
+	}
+}
+
+bool Control::is_accessibility_state_multiselectable() const {
+	return data.accessibility_state_multiselectable;
+}
+
+void Control::set_accessibility_state_visited(bool p_visited) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_visited != p_visited) {
+		data.accessibility_state_visited = p_visited;
+		queue_accessibility_update();
+	}
+}
+
+bool Control::is_accessibility_state_visited() const {
+	return data.accessibility_state_visited;
+}
+
+void Control::set_accessibility_state_current(int p_current) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_current != p_current) {
+		data.accessibility_state_current = p_current;
+		queue_accessibility_update();
+	}
+}
+
+int Control::get_accessibility_state_current() const {
+	return data.accessibility_state_current;
+}
+
+void Control::set_accessibility_state_autocomplete(int p_autocomplete) {
+	ERR_THREAD_GUARD
+	if (data.accessibility_state_autocomplete != p_autocomplete) {
+		data.accessibility_state_autocomplete = p_autocomplete;
+		queue_accessibility_update();
+	}
+}
+
+int Control::get_accessibility_state_autocomplete() const {
+	return data.accessibility_state_autocomplete;
+}
+
 void Control::set_accessibility_live(AccessibilityServerEnums::AccessibilityLiveMode p_mode) {
 	ERR_THREAD_GUARD
 	if (data.accessibility_live != p_mode) {
@@ -4456,6 +4653,14 @@ void Control::_accessibility_action_scroll_into_view(const Variant &p_data) {
 	}
 }
 
+void Control::_accessibility_action_expand(const Variant &p_data) {
+	emit_signal(SNAME("accessibility_action_expand"));
+}
+
+void Control::_accessibility_action_collapse(const Variant &p_data) {
+	emit_signal(SNAME("accessibility_action_collapse"));
+}
+
 void Control::_notification(int p_notification) {
 	ERR_MAIN_THREAD_GUARD;
 	switch (p_notification) {
@@ -4479,9 +4684,87 @@ void Control::_notification(int p_notification) {
 
 			AccessibilityServer::get_singleton()->update_set_transform(ae, get_transform());
 			AccessibilityServer::get_singleton()->update_set_bounds(ae, Rect2(Vector2(), data.size_cache));
-			AccessibilityServer::get_singleton()->update_set_tooltip(ae, data.tooltip);
+			// Translate tooltip for accessibility based on auto-translate mode.
+			{
+				String ac_tooltip;
+				if (!data.tooltip.is_empty()) {
+					switch (data.tooltip_auto_translate_mode) {
+						case AUTO_TRANSLATE_MODE_ALWAYS:
+							ac_tooltip = tr(data.tooltip);
+							break;
+						case AUTO_TRANSLATE_MODE_DISABLED:
+							ac_tooltip = data.tooltip;
+							break;
+						default: // AUTO_TRANSLATE_MODE_INHERIT.
+							ac_tooltip = atr(data.tooltip);
+							break;
+					}
+				}
+				AccessibilityServer::get_singleton()->update_set_tooltip(ae, ac_tooltip);
+			}
 			AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_CLIPS_CHILDREN, data.clip_contents);
 			AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_TOUCH_PASSTHROUGH, data.mouse_filter == MOUSE_FILTER_PASS);
+
+			// Automation ID setting (Explicit or Dynamic/Intelligent default)
+			String auto_id = data.accessibility_automation_id;
+			if (auto_id.is_empty()) {
+				String clean_name = get_name();
+				clean_name = clean_name.replace(" ", "_").replace("@", "");
+				auto_id = get_class() + "_" + (clean_name.is_empty() ? "Control" : clean_name);
+			}
+			AccessibilityServer::get_singleton()->update_set_author_id(ae, auto_id);
+
+			// Custom Role setting (if set to non-unknown, or if default role is non-unknown)
+			AccessibilityServerEnums::AccessibilityRole active_role = data.accessibility_role;
+			if (active_role == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				active_role = get_accessibility_default_role();
+			}
+			if (active_role != AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, active_role);
+			}
+
+			// Custom Expanded State setting (if set to non-none)
+			if (data.accessibility_state_expanded != 0) {
+				AccessibilityServer::get_singleton()->update_set_expanded(ae, data.accessibility_state_expanded);
+				AccessibilityServer::get_singleton()->update_add_action(ae, AccessibilityServerEnums::AccessibilityAction::ACTION_EXPAND, callable_mp(this, &Control::_accessibility_action_expand));
+				AccessibilityServer::get_singleton()->update_add_action(ae, AccessibilityServerEnums::AccessibilityAction::ACTION_COLLAPSE, callable_mp(this, &Control::_accessibility_action_collapse));
+			}
+
+			// Selected State setting
+			if (data.accessibility_state_selected != 0) {
+				AccessibilityServer::get_singleton()->update_set_selected_state(ae, data.accessibility_state_selected);
+			}
+
+			// Checked State setting
+			if (data.accessibility_state_checked != 0) {
+				AccessibilityServer::get_singleton()->update_set_checked_state(ae, data.accessibility_state_checked);
+			}
+
+			// Boolean States/Flags setting
+			if (data.accessibility_state_disabled) {
+				AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, true);
+			}
+			if (data.accessibility_state_readonly) {
+				AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_READONLY, true);
+			}
+			if (data.accessibility_state_hidden) {
+				AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_HIDDEN, true);
+			}
+			if (data.accessibility_state_busy) {
+				AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_BUSY, true);
+			}
+			if (data.accessibility_state_required) {
+				AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_REQUIRED, true);
+			}
+			if (data.accessibility_state_modal) {
+				AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_MODAL, true);
+			}
+			if (data.accessibility_state_haspopup) {
+				AccessibilityServer::get_singleton()->update_set_popup_type(ae, AccessibilityServerEnums::AccessibilityPopupType::POPUP_MENU);
+			}
+			if (data.accessibility_state_multiselectable) {
+				AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_MULTISELECTABLE, true);
+			}
 
 			if (_is_focusable()) {
 				AccessibilityServer::get_singleton()->update_add_action(ae, AccessibilityServerEnums::AccessibilityAction::ACTION_FOCUS, callable_mp(this, &Control::_accessibility_action_foucs));
@@ -4904,6 +5187,44 @@ void Control::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_accessibility_live", "mode"), &Control::set_accessibility_live);
 	ClassDB::bind_method(D_METHOD("get_accessibility_live"), &Control::get_accessibility_live);
 
+	ClassDB::bind_method(D_METHOD("set_accessibility_automation_id", "automation_id"), &Control::set_accessibility_automation_id);
+	ClassDB::bind_method(D_METHOD("get_accessibility_automation_id"), &Control::get_accessibility_automation_id);
+	ClassDB::bind_method(D_METHOD("set_accessibility_role", "role"), &Control::set_accessibility_role);
+	ClassDB::bind_method(D_METHOD("get_accessibility_role"), &Control::get_accessibility_role);
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_expanded", "expanded"), &Control::set_accessibility_state_expanded);
+	ClassDB::bind_method(D_METHOD("get_accessibility_state_expanded"), &Control::get_accessibility_state_expanded);
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_selected", "selected"), &Control::set_accessibility_state_selected);
+	ClassDB::bind_method(D_METHOD("get_accessibility_state_selected"), &Control::get_accessibility_state_selected);
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_checked", "checked"), &Control::set_accessibility_state_checked);
+	ClassDB::bind_method(D_METHOD("get_accessibility_state_checked"), &Control::get_accessibility_state_checked);
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_disabled", "disabled"), &Control::set_accessibility_state_disabled);
+	ClassDB::bind_method(D_METHOD("is_accessibility_state_disabled"), &Control::is_accessibility_state_disabled);
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_readonly", "readonly"), &Control::set_accessibility_state_readonly);
+	ClassDB::bind_method(D_METHOD("is_accessibility_state_readonly"), &Control::is_accessibility_state_readonly);
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_hidden", "hidden"), &Control::set_accessibility_state_hidden);
+	ClassDB::bind_method(D_METHOD("is_accessibility_state_hidden"), &Control::is_accessibility_state_hidden);
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_busy", "busy"), &Control::set_accessibility_state_busy);
+	ClassDB::bind_method(D_METHOD("is_accessibility_state_busy"), &Control::is_accessibility_state_busy);
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_required", "required"), &Control::set_accessibility_state_required);
+	ClassDB::bind_method(D_METHOD("is_accessibility_state_required"), &Control::is_accessibility_state_required);
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_modal", "modal"), &Control::set_accessibility_state_modal);
+	ClassDB::bind_method(D_METHOD("is_accessibility_state_modal"), &Control::is_accessibility_state_modal);
+
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_haspopup", "haspopup"), &Control::set_accessibility_state_haspopup);
+	ClassDB::bind_method(D_METHOD("is_accessibility_state_haspopup"), &Control::is_accessibility_state_haspopup);
+
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_multiselectable", "multiselectable"), &Control::set_accessibility_state_multiselectable);
+	ClassDB::bind_method(D_METHOD("is_accessibility_state_multiselectable"), &Control::is_accessibility_state_multiselectable);
+
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_visited", "visited"), &Control::set_accessibility_state_visited);
+	ClassDB::bind_method(D_METHOD("is_accessibility_state_visited"), &Control::is_accessibility_state_visited);
+
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_current", "current"), &Control::set_accessibility_state_current);
+	ClassDB::bind_method(D_METHOD("get_accessibility_state_current"), &Control::get_accessibility_state_current);
+
+	ClassDB::bind_method(D_METHOD("set_accessibility_state_autocomplete", "autocomplete"), &Control::set_accessibility_state_autocomplete);
+	ClassDB::bind_method(D_METHOD("get_accessibility_state_autocomplete"), &Control::get_accessibility_state_autocomplete);
+
 	ClassDB::bind_method(D_METHOD("set_accessibility_controls_nodes", "node_path"), &Control::set_accessibility_controls_nodes);
 	ClassDB::bind_method(D_METHOD("get_accessibility_controls_nodes"), &Control::get_accessibility_controls_nodes);
 	ClassDB::bind_method(D_METHOD("set_accessibility_described_by_nodes", "node_path"), &Control::set_accessibility_described_by_nodes);
@@ -5071,6 +5392,25 @@ void Control::_bind_methods() {
 	ADD_GROUP("Accessibility", "accessibility_");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "accessibility_name"), "set_accessibility_name", "get_accessibility_name");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "accessibility_description"), "set_accessibility_description", "get_accessibility_description");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "accessibility_automation_id"), "set_accessibility_automation_id", "get_accessibility_automation_id");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_role", PROPERTY_HINT_ENUM, "Unknown,Default Button,Audio,Video,Static Text,Container,Panel,Button,Link,Check Box,Radio Button,Check Button,Scroll Bar,Scroll View,Splitter,Slider,Spin Button,Progress Indicator,Text Field,Multiline Text Field,Color Picker,Table,Cell,Row,Row Group,Group,Row Header,Column Header,Tree,Tree Item,List,List Item,List Box,List Box Option,Tab Bar,Tab,Tab Panel,Menu Bar,Menu,Menu Item,Menu Item Check Box,Menu Item Radio,Image,Window,Title Bar,Dialog,Tooltip,Region,Text Run,Combo Box,Editable Combo Box,Menu List Option,Menu List Popup,Search Input,Date Input,Date Time Input,Week Input,Month Input,Time Input,Email Input,Number Input,Password Input,Phone Number Input,Url Input,Switch,Paragraph,Label,Abbreviation,Alert,Alert Dialog,Application,Article,Banner,Blockquote,Canvas,Caption,Caret,Code,Complementary,Comment,Content Deletion,Content Insertion,Content Info,Definition,Description List,Details,Disclosure Triangle,Document,Embedded Object,Emphasis,Feed,Figure,Figure Caption,Footer,Form,Grid,Grid Cell,Header,Heading,Iframe,Iframe Presentational,Ime Candidate,Keyboard,Legend,Line Break,List Marker,Log,Main,Mark,Marquee,Math,Meter,Navigation,Note,Plugin Object,Radio Group,Root Web Area,Ruby,Ruby Annotation,Search,Section,Section Header,Section Footer,Status,Strong,Suggestion,Svg Root,Term,Timer,Toolbar,Tree Grid,Web View,List Grid,Terminal,Graphics Document,Graphics Object,Graphics Symbol,Pdf Root,Pdf Actionable Highlight"), "set_accessibility_role", "get_accessibility_role");
+
+	ADD_SUBGROUP("Accessibility States", "accessibility_state_");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_state_expanded", PROPERTY_HINT_ENUM, "None,Collapsed,Expanded"), "set_accessibility_state_expanded", "get_accessibility_state_expanded");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_state_selected", PROPERTY_HINT_ENUM, "None,Unselected,Selected"), "set_accessibility_state_selected", "get_accessibility_state_selected");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_state_checked", PROPERTY_HINT_ENUM, "None,Unchecked,Checked,Mixed"), "set_accessibility_state_checked", "get_accessibility_state_checked");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "accessibility_state_disabled"), "set_accessibility_state_disabled", "is_accessibility_state_disabled");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "accessibility_state_readonly"), "set_accessibility_state_readonly", "is_accessibility_state_readonly");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "accessibility_state_hidden"), "set_accessibility_state_hidden", "is_accessibility_state_hidden");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "accessibility_state_busy"), "set_accessibility_state_busy", "is_accessibility_state_busy");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "accessibility_state_required"), "set_accessibility_state_required", "is_accessibility_state_required");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "accessibility_state_modal"), "set_accessibility_state_modal", "is_accessibility_state_modal");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "accessibility_state_haspopup"), "set_accessibility_state_haspopup", "is_accessibility_state_haspopup");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "accessibility_state_multiselectable"), "set_accessibility_state_multiselectable", "is_accessibility_state_multiselectable");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "accessibility_state_visited"), "set_accessibility_state_visited", "is_accessibility_state_visited");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_state_current", PROPERTY_HINT_ENUM, "None,Step,Location,Date,Time,True"), "set_accessibility_state_current", "get_accessibility_state_current");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_state_autocomplete", PROPERTY_HINT_ENUM, "None,Inline,List,Both"), "set_accessibility_state_autocomplete", "get_accessibility_state_autocomplete");
+
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_live", PROPERTY_HINT_ENUM, "Off,Polite,Assertive"), "set_accessibility_live", "get_accessibility_live");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "accessibility_controls_nodes", PROPERTY_HINT_ARRAY_TYPE, "NodePath"), "set_accessibility_controls_nodes", "get_accessibility_controls_nodes");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "accessibility_described_by_nodes", PROPERTY_HINT_ARRAY_TYPE, "NodePath"), "set_accessibility_described_by_nodes", "get_accessibility_described_by_nodes");
@@ -5180,6 +5520,8 @@ void Control::_bind_methods() {
 	BIND_ENUM_CONSTANT(TEXT_DIRECTION_RTL);
 
 	ADD_SIGNAL(MethodInfo("resized"));
+	ADD_SIGNAL(MethodInfo("accessibility_action_expand"));
+	ADD_SIGNAL(MethodInfo("accessibility_action_collapse"));
 	ADD_SIGNAL(MethodInfo("_layout_pending_finished"));
 	ADD_SIGNAL(MethodInfo("gui_input", PropertyInfo(Variant::OBJECT, "event", PROPERTY_HINT_RESOURCE_TYPE, InputEvent::get_class_static())));
 	ADD_SIGNAL(MethodInfo("mouse_entered"));

@@ -55,6 +55,7 @@ class MenuBar : public Control {
 		bool disabled = false;
 		RID submenu_rid;
 		NativeMenu::SystemMenus sysmenu_id = NativeMenu::INVALID_MENU_ID;
+		RID accessibility_element;
 
 		Menu(const String &p_name) {
 			name = p_name;
@@ -70,6 +71,7 @@ class MenuBar : public Control {
 	int focused_menu = -1;
 	int selected_menu = -1;
 	int active_menu = -1;
+	int last_activated_menu = 0;
 
 	Vector2i old_mouse_pos;
 
@@ -134,6 +136,11 @@ class MenuBar : public Control {
 	}
 
 	void _popup_changed(ObjectID p_menu);
+	void _accessibility_action_menu_click(const Variant &p_data, int p_idx);
+	void _accessibility_action_menu_expand(const Variant &p_data, int p_idx);
+	void _accessibility_action_menu_collapse(const Variant &p_data, int p_idx);
+
+	void _set_focused_menu(int p_menu);
 
 	void bind_global_menu();
 	void unbind_global_menu();
@@ -148,6 +155,7 @@ protected:
 	static void _bind_methods();
 
 public:
+	virtual RID get_focused_accessibility_element() const override;
 	virtual void gui_input(const Ref<InputEvent> &p_event) override;
 
 	void set_switch_on_hover(bool p_enabled);
@@ -188,6 +196,8 @@ public:
 	bool is_menu_hidden(int p_menu) const;
 
 	PopupMenu *get_menu_popup(int p_menu) const;
+	int get_last_activated_menu() const { return last_activated_menu; }
+	void open_menu(int p_menu);
 
 	virtual String get_tooltip(const Point2 &p_pos) const override;
 

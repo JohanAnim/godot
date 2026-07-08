@@ -270,6 +270,7 @@ class SceneTreeDock : public EditorDock {
 	void _files_dropped(const Vector<String> &p_files, NodePath p_to, int p_type);
 	void _script_dropped(const String &p_file, NodePath p_to);
 	void _quick_open(const String &p_file_path);
+	void _scene_tree_context_menu_closed();
 
 	void _tree_rmb(const Vector2 &p_menu_pos);
 	void _setup_tree_menu();
@@ -340,6 +341,7 @@ public:
 	void fill_path_renames(Node *p_node, Node *p_new_parent, HashMap<Node *, NodePath> *p_renames);
 	void perform_node_renames(Node *p_base, HashMap<Node *, NodePath> *p_renames, HashMap<Ref<Animation>, HashSet<int>> *r_rem_anims = nullptr, LocalVector<Pair<StringName, StringName>> *r_folded_group_renames = nullptr);
 	void perform_node_replace(Node *p_base, Node *p_node, Node *p_by_node);
+	void focus_scene_tree();
 	SceneTreeEditor *get_tree_editor() { return scene_tree; }
 	EditorData *get_editor_data() { return editor_data; }
 

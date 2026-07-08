@@ -280,6 +280,7 @@ private:
 
 	FBXImporterManager *fbx_importer_manager = nullptr;
 
+	ObjectID saved_focus_id;
 	Vector<EditorPlugin *> editor_plugins;
 	bool _initializing_plugins = false;
 	HashMap<String, EditorPlugin *> addon_name_to_plugin;
@@ -702,6 +703,13 @@ private:
 
 	void _progress_dialog_visibility_changed();
 	void _load_error_dialog_visibility_changed();
+	bool _is_focus_restore_candidate(Control *p_control) const;
+public:
+	bool is_focus_restore_candidate(Control *p_control) const { return _is_focus_restore_candidate(p_control); }
+private:
+	void _save_focus_candidate(Control *p_control);
+	void _on_gui_focus_changed(Control *p_control);
+	void _restore_focus();
 
 	void _execute_upgrades();
 

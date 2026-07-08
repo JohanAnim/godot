@@ -482,11 +482,11 @@ TreeItem *EditorSettingsDialog::_create_shortcut_treeitem(TreeItem *p_parent, co
 	}
 
 	if (p_allow_revert) {
-		shortcut_item->add_button(1, get_editor_theme_icon(SNAME("Reload")), SHORTCUT_REVERT);
+		shortcut_item->add_button(1, get_editor_theme_icon(SNAME("Reload")), SHORTCUT_REVERT, false, TTRC("Revert"));
 	}
 
-	shortcut_item->add_button(1, get_editor_theme_icon(SNAME("Add")), SHORTCUT_ADD);
-	shortcut_item->add_button(1, get_editor_theme_icon(SNAME("Close")), SHORTCUT_ERASE, p_events.is_empty());
+	shortcut_item->add_button(1, get_editor_theme_icon(SNAME("Add")), SHORTCUT_ADD, false, TTRC("Add Event"));
+	shortcut_item->add_button(1, get_editor_theme_icon(SNAME("Close")), SHORTCUT_ERASE, p_events.is_empty(), TTRC("Remove"));
 
 	shortcut_item->set_meta("is_action", p_is_action);
 	shortcut_item->set_meta("type", "shortcut");
@@ -507,8 +507,8 @@ TreeItem *EditorSettingsDialog::_create_shortcut_treeitem(TreeItem *p_parent, co
 		event_item->set_text(1, ie->as_text());
 		event_item->set_auto_translate_mode(1, AUTO_TRANSLATE_MODE_DISABLED);
 
-		event_item->add_button(1, get_editor_theme_icon(SNAME("Edit")), SHORTCUT_EDIT);
-		event_item->add_button(1, get_editor_theme_icon(SNAME("Close")), SHORTCUT_ERASE);
+		event_item->add_button(1, get_editor_theme_icon(SNAME("Edit")), SHORTCUT_EDIT, false, TTRC("Edit Event"));
+		event_item->add_button(1, get_editor_theme_icon(SNAME("Close")), SHORTCUT_ERASE, false, TTRC("Remove"));
 
 		event_item->set_custom_bg_color(0, get_theme_color(SNAME("dark_color_3"), EditorStringName(Editor)));
 		event_item->set_custom_bg_color(1, get_theme_color(SNAME("dark_color_3"), EditorStringName(Editor)));
@@ -1056,6 +1056,7 @@ EditorSettingsDialog::EditorSettingsDialog() {
 	shortcuts = memnew(Tree);
 	shortcuts->set_accessibility_name(TTRC("Shortcuts"));
 	shortcuts->set_theme_type_variation("TreeTable");
+	shortcuts->set_accessibility_as_grid(true);
 	shortcuts->set_columns(2);
 	shortcuts->set_hide_root(true);
 	shortcuts->set_column_titles_visible(true);

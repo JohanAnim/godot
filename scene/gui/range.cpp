@@ -116,7 +116,9 @@ void Range::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_SPIN_BUTTON);
+			if (get_accessibility_role() == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+				AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_SPIN_BUTTON);
+			}
 			AccessibilityServer::get_singleton()->update_set_num_value(ae, shared->val);
 			AccessibilityServer::get_singleton()->update_set_num_range(ae, shared->min, shared->max);
 			if (shared->step > 0) {

@@ -631,6 +631,7 @@ ActionMapEditor::ActionMapEditor() {
 	action_tree = memnew(Tree);
 	action_tree->set_accessibility_name(TTRC("Action Map"));
 	action_tree->set_theme_type_variation("TreeTable");
+	action_tree->set_accessibility_as_grid(true);
 	action_tree->set_columns(3);
 	action_tree->set_hide_root(true);
 	action_tree->set_column_titles_visible(true);

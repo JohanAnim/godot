@@ -4181,6 +4181,35 @@ void SceneTreeDock::_tree_rmb(const Vector2 &p_menu_pos) {
 	menu->popup();
 }
 
+void SceneTreeDock::_scene_tree_context_menu_closed() {
+	if (remote_tree && remote_tree->is_visible_in_tree()) {
+		remote_tree->grab_focus(true);
+		remote_tree->call_deferred("grab_focus", true);
+		return;
+	}
+
+	if (!scene_tree || !scene_tree->is_visible_in_tree()) {
+		return;
+	}
+
+	Tree *local_tree = scene_tree->get_scene_tree();
+	if (!local_tree || !local_tree->is_visible_in_tree()) {
+		return;
+	}
+
+	Node *selected_node = scene_tree->get_selected();
+	if (selected_node) {
+		TreeItem *selected_item = local_tree->get_item_with_metadata(selected_node->get_path());
+		if (selected_item) {
+			local_tree->scroll_to_item(selected_item, true);
+			selected_item->set_as_cursor(0);
+		}
+	}
+
+	local_tree->grab_focus(true);
+	local_tree->call_deferred("grab_focus", true);
+}
+
 void SceneTreeDock::_setup_tree_menu() {
 	PopupMenu *tree_menu = button_tree_menu->get_popup();
 
@@ -4306,6 +4335,18 @@ void SceneTreeDock::_focus_node() {
 		Node3DEditorPlugin *editor = Object::cast_to<Node3DEditorPlugin>(editor_data->get_editor_by_name("3D"));
 		editor->get_spatial_editor()->get_editor_viewport(0)->focus_selection();
 	}
+}
+
+void SceneTreeDock::focus_scene_tree() {
+	Node *node = scene_tree->get_selected();
+	if (!node) {
+		// No node selected, select the root.
+		node = EditorNode::get_singleton()->get_edited_scene();
+		if (node) {
+			scene_tree->set_selected(node, true);
+		}
+	}
+	scene_tree->get_scene_tree()->grab_focus(true);
 }
 
 void SceneTreeDock::attach_script_to_selected(bool p_extend) {
@@ -4669,7 +4710,6 @@ List<Node *> SceneTreeDock::get_node_clipboard() const {
 
 void SceneTreeDock::add_remote_tree_editor(Tree *p_remote) {
 	ERR_FAIL_COND(remote_tree != nullptr);
-	main_mc->add_child(p_remote);
 	remote_tree = p_remote;
 	remote_tree->set_scroll_hint_mode(Tree::SCROLL_HINT_MODE_TOP);
 	remote_tree->hide();
@@ -4697,8 +4737,13 @@ void SceneTreeDock::_remote_tree_selected() {
 	scene_tree->hide();
 	create_root_dialog->hide();
 	if (remote_tree) {
+		if (remote_tree->get_parent() != main_mc) {
+			main_mc->add_child(remote_tree);
+		}
 		remote_tree->show();
+		remote_tree->queue_accessibility_update();
 	}
+	scene_tree->get_scene_tree()->queue_accessibility_update();
 	edit_remote->set_pressed(true);
 	edit_local->set_pressed(false);
 
@@ -4707,9 +4752,14 @@ void SceneTreeDock::_remote_tree_selected() {
 
 void SceneTreeDock::_local_tree_selected() {
 	if (remote_tree) {
+		remote_tree->queue_accessibility_update();
 		remote_tree->hide();
+		if (remote_tree->get_parent() == main_mc) {
+			main_mc->remove_child(remote_tree);
+		}
 	}
 	_update_create_root_dialog_visibility();
+	scene_tree->get_scene_tree()->queue_accessibility_update();
 	edit_remote->set_pressed(false);
 	edit_local->set_pressed(true);
 }
@@ -5179,9 +5229,11 @@ SceneTreeDock::SceneTreeDock(Node *p_scene_root, EditorSelection *p_editor_selec
 	add_child(create_dialog);
 	create_dialog->connect("create", callable_mp(this, &SceneTreeDock::_create));
 	create_dialog->connect("favorites_updated", callable_mp(this, &SceneTreeDock::_update_create_root_dialog).bind(false));
+	create_dialog->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	rename_dialog = memnew(RenameDialog(scene_tree));
 	add_child(rename_dialog);
+	rename_dialog->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	script_create_dialog = memnew(ScriptCreateDialog);
 	script_create_dialog->set_inheritance_base_type("Node");
@@ -5193,9 +5245,11 @@ SceneTreeDock::SceneTreeDock(Node *p_scene_root, EditorSelection *p_editor_selec
 	reparent_dialog = memnew(ReparentDialog);
 	add_child(reparent_dialog);
 	reparent_dialog->connect("reparent", callable_mp(this, &SceneTreeDock::_node_reparent));
+	reparent_dialog->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	accept = memnew(AcceptDialog);
 	add_child(accept);
+	accept->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	set_process_shortcut_input(true);
 
@@ -5203,6 +5257,7 @@ SceneTreeDock::SceneTreeDock(Node *p_scene_root, EditorSelection *p_editor_selec
 	delete_dialog->set_ok_button_text(TTRC("Delete"));
 	add_child(delete_dialog);
 	delete_dialog->connect(SceneStringName(confirmed), callable_mp(this, &SceneTreeDock::_delete_confirm).bind(false));
+	delete_dialog->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	VBoxContainer *vb = memnew(VBoxContainer);
 	delete_dialog->add_child(vb);
@@ -5219,11 +5274,13 @@ SceneTreeDock::SceneTreeDock(Node *p_scene_root, EditorSelection *p_editor_selec
 	editable_instance_remove_dialog->set_flag(Window::FLAG_RESIZE_DISABLED, true);
 	add_child(editable_instance_remove_dialog);
 	editable_instance_remove_dialog->connect(SceneStringName(confirmed), callable_mp(this, &SceneTreeDock::_toggle_editable_children_from_selection));
+	editable_instance_remove_dialog->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	placeholder_editable_instance_remove_dialog = memnew(ConfirmationDialog);
 	placeholder_editable_instance_remove_dialog->set_flag(Window::FLAG_RESIZE_DISABLED, true);
 	add_child(placeholder_editable_instance_remove_dialog);
 	placeholder_editable_instance_remove_dialog->connect(SceneStringName(confirmed), callable_mp(this, &SceneTreeDock::_toggle_placeholder_from_selection));
+	placeholder_editable_instance_remove_dialog->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	new_scene_from_dialog = memnew(EditorFileDialog);
 	new_scene_from_dialog->set_file_mode(EditorFileDialog::FILE_MODE_SAVE_FILE);
@@ -5232,18 +5289,22 @@ SceneTreeDock::SceneTreeDock(Node *p_scene_root, EditorSelection *p_editor_selec
 	new_scene_from_dialog->add_option(TTRC("Reset Scale"), Vector<String>(), false);
 	add_child(new_scene_from_dialog);
 	new_scene_from_dialog->connect("file_selected", callable_mp(this, &SceneTreeDock::_new_scene_from));
+	new_scene_from_dialog->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	menu = memnew(PopupMenu);
 	add_child(menu);
 	menu->connect(SceneStringName(id_pressed), callable_mp(this, &SceneTreeDock::_tool_selected).bind(false));
+	menu->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	menu_subresources = memnew(PopupMenu);
 	menu_subresources->connect(SceneStringName(id_pressed), callable_mp(this, &SceneTreeDock::_tool_selected).bind(false));
+	menu_subresources->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 	menu->add_child(menu_subresources);
 
 	menu_properties = memnew(PopupMenu);
 	add_child(menu_properties);
 	menu_properties->connect(SceneStringName(id_pressed), callable_mp(this, &SceneTreeDock::_property_selected));
+	menu_properties->connect("popup_hide", callable_mp(this, &SceneTreeDock::_scene_tree_context_menu_closed));
 
 	clear_inherit_confirm = memnew(ConfirmationDialog);
 	clear_inherit_confirm->set_flag(Window::FLAG_RESIZE_DISABLED, true);

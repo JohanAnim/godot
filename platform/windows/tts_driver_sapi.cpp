@@ -90,7 +90,13 @@ void TTSDriverSAPI::process_events() {
 						if (String::utf16((const char16_t *)w_id) == message.voice) {
 							synth->SetVoice(cpVoiceToken);
 							cpVoiceToken->Release();
+							if (w_id) {
+								CoTaskMemFree(w_id);
+							}
 							break;
+						}
+						if (w_id) {
+							CoTaskMemFree(w_id);
 						}
 						cpVoiceToken->Release();
 					}
@@ -154,28 +160,51 @@ Array TTSDriverSAPI::get_voices() const {
 						cpVoiceToken->GetId(&w_id);
 						cpDataKeyAttribs->GetStringValue(L"Language", &w_lang);
 						cpDataKeyAttribs->GetStringValue(nullptr, &w_name);
-						LCID locale = wcstol(w_lang, nullptr, 16);
-
-						int locale_chars = GetLocaleInfoW(locale, LOCALE_SISO639LANGNAME, nullptr, 0);
-						int region_chars = GetLocaleInfoW(locale, LOCALE_SISO3166CTRYNAME, nullptr, 0);
-						wchar_t *w_lang_code = new wchar_t[locale_chars];
-						wchar_t *w_reg_code = new wchar_t[region_chars];
-						GetLocaleInfoW(locale, LOCALE_SISO639LANGNAME, w_lang_code, locale_chars);
-						GetLocaleInfoW(locale, LOCALE_SISO3166CTRYNAME, w_reg_code, region_chars);
 
 						Dictionary voice_d;
 						voice_d["id"] = String::utf16((const char16_t *)w_id);
+
 						if (w_name) {
 							voice_d["name"] = String::utf16((const char16_t *)w_name);
+						} else if (w_id) {
+							// Extract name from registry path (works for any manufacturer).
+							String id_str = String::utf16((const char16_t *)w_id);
+							int last_slash = id_str.rfind("\\");
+							if (last_slash != -1) {
+								voice_d["name"] = id_str.substr(last_slash + 1);
+							} else {
+								voice_d["name"] = id_str;
+							}
 						} else {
-							voice_d["name"] = voice_d["id"].operator String().replace("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\", "");
+							voice_d["name"] = "Unknown Voice";
 						}
-						voice_d["language"] = String::utf16((const char16_t *)w_lang_code) + "_" + String::utf16((const char16_t *)w_reg_code);
+
+						if (w_lang) {
+							LCID locale = wcstol(w_lang, nullptr, 16);
+							int locale_chars = GetLocaleInfoW(locale, LOCALE_SISO639LANGNAME, nullptr, 0);
+							int region_chars = GetLocaleInfoW(locale, LOCALE_SISO3166CTRYNAME, nullptr, 0);
+							wchar_t *w_lang_code = new wchar_t[locale_chars];
+							wchar_t *w_reg_code = new wchar_t[region_chars];
+							GetLocaleInfoW(locale, LOCALE_SISO639LANGNAME, w_lang_code, locale_chars);
+							GetLocaleInfoW(locale, LOCALE_SISO3166CTRYNAME, w_reg_code, region_chars);
+							voice_d["language"] = String::utf16((const char16_t *)w_lang_code) + "_" + String::utf16((const char16_t *)w_reg_code);
+							delete[] w_lang_code;
+							delete[] w_reg_code;
+						} else {
+							voice_d["language"] = "en_US";
+						}
+
 						list.push_back(voice_d);
 
-						delete[] w_lang_code;
-						delete[] w_reg_code;
-
+						if (w_id) {
+							CoTaskMemFree(w_id);
+						}
+						if (w_lang) {
+							CoTaskMemFree(w_lang);
+						}
+						if (w_name) {
+							CoTaskMemFree(w_name);
+						}
 						cpDataKeyAttribs->Release();
 					}
 					cpVoiceToken->Release();

@@ -395,15 +395,53 @@ void EditorNode::_update_unsaved_cache() {
 }
 
 void EditorNode::input(const Ref<InputEvent> &p_event) {
-	// EditorNode::get_singleton()->set_process_input is set to true in ProgressDialog
-	// only when the progress dialog is visible.
-	// We need to discard all key events to disable all shortcuts while the progress
-	// dialog is displayed, simulating an exclusive popup. Mouse events are
-	// captured by a full-screen container in front of the EditorNode in ProgressDialog,
-	// allowing interaction with the actual dialog where a Cancel button may be visible.
+	// Global accessibility shortcuts (work from anywhere, including viewports sub-viewports).
 	Ref<InputEventKey> k = p_event;
-	if (k.is_valid()) {
-		get_tree()->get_root()->set_input_as_handled();
+	if (k.is_valid() && k->is_pressed() && !k->is_echo()) {
+		if (ED_IS_SHORTCUT("editor/focus_menu", p_event)) {
+			if (main_menu_bar) {
+				// Save current focus to restore when popup closes.
+				_save_focus_candidate(get_viewport()->gui_get_focus_owner());
+				int menu_idx = main_menu_bar->get_last_activated_menu();
+				main_menu_bar->open_menu(menu_idx);
+				// Restore focus when the popup closes.
+				PopupMenu *pm = main_menu_bar->get_menu_popup(menu_idx);
+				if (pm) {
+					pm->connect("popup_hide", callable_mp(this, &EditorNode::_restore_focus), CONNECT_ONE_SHOT);
+				}
+			}
+			get_tree()->get_root()->set_input_as_handled();
+			return;
+		}
+		if (ED_IS_SHORTCUT("editor/focus_scene_tree", p_event)) {
+			if (SceneTreeDock::get_singleton()) {
+				SceneTreeDock::get_singleton()->focus_scene_tree();
+			}
+			get_tree()->get_root()->set_input_as_handled();
+			return;
+		}
+		if (ED_IS_SHORTCUT("editor/focus_inspector_filter", p_event)) {
+			if (InspectorDock::get_singleton()) {
+				InspectorDock::get_singleton()->focus_search();
+			}
+			get_tree()->get_root()->set_input_as_handled();
+			return;
+		}
+		if (ED_IS_SHORTCUT("editor/focus_scene_tabs", p_event)) {
+			if (EditorSceneTabs::get_singleton()) {
+				EditorSceneTabs::get_singleton()->grab_focus();
+			}
+			get_tree()->get_root()->set_input_as_handled();
+			return;
+		}
+	}
+
+	// Block all key events while progress dialog is visible.
+	// This is only active when ProgressDialog enables set_process_input.
+	if (progress_dialog && progress_dialog->is_visible()) {
+		if (k.is_valid()) {
+			get_tree()->get_root()->set_input_as_handled();
+		}
 	}
 }
 
@@ -1002,6 +1040,7 @@ void EditorNode::_notification(int p_what) {
 			DisplayServer::get_singleton()->set_system_theme_change_callback(callable_mp(this, &EditorNode::_check_system_theme_changed));
 
 			get_viewport()->connect("size_changed", callable_mp(this, &EditorNode::_viewport_resized));
+			get_viewport()->connect("gui_focus_changed", callable_mp(this, &EditorNode::_on_gui_focus_changed));
 
 			/* DO NOT LOAD SCENES HERE, WAIT FOR FILE SCANNING AND REIMPORT TO COMPLETE */
 		} break;
@@ -1031,6 +1070,7 @@ void EditorNode::_notification(int p_what) {
 			log->deinit(); // Do not get messages anymore.
 			editor_data.clear_edited_scenes();
 			get_viewport()->disconnect("size_changed", callable_mp(this, &EditorNode::_viewport_resized));
+			get_viewport()->disconnect("gui_focus_changed", callable_mp(this, &EditorNode::_on_gui_focus_changed));
 		} break;
 
 		case NOTIFICATION_READY: {
@@ -1096,6 +1136,9 @@ void EditorNode::_notification(int p_what) {
 
 			GDExtensionManager *gdextension_manager = GDExtensionManager::get_singleton();
 			callable_mp(gdextension_manager, &GDExtensionManager::reload_extensions).call_deferred();
+
+			// Restore focus to the last focused control before focus loss.
+			_restore_focus();
 		} break;
 
 		case NOTIFICATION_APPLICATION_FOCUS_OUT: {
@@ -1108,6 +1151,17 @@ void EditorNode::_notification(int p_what) {
 			if (unfocused_low_processor_usage_mode_enabled) {
 				OS::get_singleton()->set_low_processor_usage_mode_sleep_usec(int(EDITOR_GET("interface/editor/timers/unfocused_low_processor_mode_sleep_usec")));
 			}
+
+			// Save the current focus owner to restore when the editor regains focus.
+			_save_focus_candidate(get_viewport()->gui_get_focus_owner());
+		} break;
+
+		case NOTIFICATION_WM_WINDOW_FOCUS_IN: {
+			_restore_focus();
+		} break;
+
+		case NOTIFICATION_WM_WINDOW_FOCUS_OUT: {
+			_save_focus_candidate(get_viewport()->gui_get_focus_owner());
 		} break;
 
 		case NOTIFICATION_WM_ABOUT: {
@@ -6028,11 +6082,52 @@ void EditorNode::progress_end_task_bg(const String &p_task) {
 	singleton->progress_hb->end_task(p_task);
 }
 
+bool EditorNode::_is_focus_restore_candidate(Control *p_control) const {
+	if (!p_control || !p_control->is_inside_tree()) {
+		return false;
+	}
+
+	const String class_name = p_control->get_class();
+	if (class_name.contains("Viewport")) {
+		return false;
+	}
+
+	if (p_control->is_class("SubViewportContainer") || p_control->is_class("ViewportContainer")) {
+		return false;
+	}
+
+	return true;
+}
+
+void EditorNode::_save_focus_candidate(Control *p_control) {
+	if (_is_focus_restore_candidate(p_control)) {
+		saved_focus_id = p_control->get_instance_id();
+	}
+}
+
+void EditorNode::_on_gui_focus_changed(Control *p_control) {
+	_save_focus_candidate(p_control);
+}
+
+void EditorNode::_restore_focus() {
+	Object *obj = ObjectDB::get_instance(saved_focus_id);
+	Control *ctrl = Object::cast_to<Control>(obj);
+	if (ctrl && _is_focus_restore_candidate(ctrl) && ctrl->is_visible()) {
+		ctrl->grab_focus();
+		ctrl->call_deferred("grab_focus");
+		saved_focus_id = ObjectID();
+	}
+}
+
 void EditorNode::_progress_dialog_visibility_changed() {
 	// Open the io errors after the progress dialog is closed.
 	if (load_errors_queued_to_display && !progress_dialog->is_visible()) {
 		EditorInterface::get_singleton()->popup_dialog_centered_ratio(singleton->load_error_dialog, 0.5);
 		load_errors_queued_to_display = false;
+	}
+	// Keep global input processing active for accessibility shortcuts.
+	if (!progress_dialog->is_visible()) {
+		callable_mp(static_cast<Node *>(this), &Node::set_process_input).bind(true).call_deferred();
 	}
 }
 
@@ -8992,6 +9087,10 @@ EditorNode::EditorNode() {
 	ED_SHORTCUT("editor/next_tab", TTRC("Next Scene Tab"), KeyModifierMask::CTRL + Key::TAB);
 	ED_SHORTCUT("editor/prev_tab", TTRC("Previous Scene Tab"), KeyModifierMask::CTRL + KeyModifierMask::SHIFT + Key::TAB);
 	ED_SHORTCUT("editor/filter_files", TTRC("Focus FileSystem Filter"), KeyModifierMask::CMD_OR_CTRL + KeyModifierMask::ALT + Key::P);
+	ED_SHORTCUT("editor/focus_menu", TTRC("Focus Menu Bar"), KeyModifierMask::ALT + Key::KEY_1);
+	ED_SHORTCUT("editor/focus_scene_tree", TTRC("Focus Scene Tree"), KeyModifierMask::ALT + Key::KEY_2);
+	ED_SHORTCUT("editor/focus_inspector_filter", TTRC("Focus Inspector Filter"), KeyModifierMask::ALT + Key::KEY_3);
+	ED_SHORTCUT("editor/focus_scene_tabs", TTRC("Focus Scene Tabs"), KeyModifierMask::ALT + Key::KEY_4);
 
 	ED_SHORTCUT_AND_COMMAND("editor/new_scene", TTRC("New Scene"), KeyModifierMask::CMD_OR_CTRL + Key::N);
 	ED_SHORTCUT_AND_COMMAND("editor/new_inherited_scene", TTRC("New Inherited Scene..."), KeyModifierMask::CMD_OR_CTRL + KeyModifierMask::SHIFT + Key::N);
@@ -9130,6 +9229,8 @@ EditorNode::EditorNode() {
 	left_spacer->add_child(project_title);
 
 	HBoxContainer *main_editor_button_hb = memnew(HBoxContainer);
+	main_editor_button_hb->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_TOOLBAR);
+	main_editor_button_hb->set_accessibility_name(TTRC("Editor screen selector"));
 	main_editor_button_hb->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 	main_editor_button_hb->set_name("EditorMainScreenButtons");
 	editor_main_screen->set_button_container(main_editor_button_hb);
@@ -9588,6 +9689,7 @@ EditorNode::EditorNode() {
 	saving_resource = Ref<Resource>();
 
 	set_process(true);
+	set_process_input(true);
 
 	open_imported = memnew(ConfirmationDialog);
 	open_imported->set_flag(Window::FLAG_RESIZE_DISABLED, true);
