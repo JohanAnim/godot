@@ -112,7 +112,7 @@ void OptionButton::_notification(int p_what) {
 
 			if (popup && popup->get_accessibility_element().is_valid()) {
 				if (is_open) {
-					popup->set_accessibility_name(get_text());
+					popup->set_accessibility_name(get_accessibility_name());
 					AccessibilityServer::get_singleton()->element_set_parent(popup->get_accessibility_element(), ae);
 				} else {
 					AccessibilityServer::get_singleton()->element_set_parent(popup->get_accessibility_element(), RID());

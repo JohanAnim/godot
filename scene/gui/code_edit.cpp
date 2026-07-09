@@ -207,7 +207,6 @@ void CodeEdit::_notification(int p_what) {
 					RID item = code_completion_ac_items[i];
 					AccessibilityServer::get_singleton()->update_set_role(item, AccessibilityServerEnums::AccessibilityRole::ROLE_MENU_ITEM);
 					AccessibilityServer::get_singleton()->update_set_list_item_index(item, i);
-					AccessibilityServer::get_singleton()->update_set_list_item_count(item, options_count);
 					AccessibilityServer::get_singleton()->update_set_list_item_selected(item, i == code_completion_current_selected);
 					AccessibilityServer::get_singleton()->update_set_name(item, code_completion_options[i].display);
 					AccessibilityServer::get_singleton()->update_set_bounds(item, Rect2(code_completion_rect.position.x, code_completion_rect.position.y + row_height * i, code_completion_rect.size.x, row_height));
@@ -466,65 +465,9 @@ void CodeEdit::_draw_guidelines() {
 }
 
 void CodeEdit::gui_input(const Ref<InputEvent> &p_gui_input) {
-	int event_device_id = p_gui_input->get_device();
-	Ref<InputEventScreenTouch> touch = p_gui_input;
-	if (touch.is_valid() && event_device_id != InputEvent::DEVICE_ID_EMULATION) {
-		if (code_completion_active) {
-			Vector2 touch_pos = touch->get_position();
-			if (code_completion_rect.has_point(touch_pos) || code_completion_scroll_rect.has_point(touch_pos)) {
-				if (touch->is_pressed()) {
-					is_code_completion_drag_started = true;
-					if (code_completion_force_item_center == -1) {
-						code_completion_force_item_center = code_completion_current_selected;
-					}
-
-					code_completion_current_selected = CLAMP(code_completion_line_ofs + (touch_pos.y - code_completion_rect.position.y) / get_line_height(), 0, code_completion_options.size() - 1);
-					code_completion_pan_offset = 0.0f;
-					if (touch->is_double_tap()) {
-						confirm_code_completion();
-					}
-					queue_redraw();
-					queue_accessibility_update();
-				} else {
-					// Finger lifted up inside the boundaries.
-					is_code_completion_drag_started = false;
-				}
-				accept_event();
-				return;
-			}
-
-			// If touch lands completely outside the completion popup.
-			if (touch->is_pressed()) {
-				cancel_code_completion();
-				set_code_hint("");
-			} else {
-				is_code_completion_drag_started = false;
-				accept_event();
-				return;
-			}
-		} else {
-			if (touch->is_pressed()) {
-				set_code_hint("");
-			}
-		}
-	}
-
-	real_t delta = 0.0;
-	bool is_valid_scroll_event = false;
-
 	Ref<InputEventPanGesture> pan_gesture = p_gui_input;
 	if (pan_gesture.is_valid() && code_completion_active && code_completion_rect.has_point(pan_gesture->get_position())) {
-		delta = pan_gesture->get_delta().y;
-		is_valid_scroll_event = true;
-	}
-
-	Ref<InputEventScreenDrag> drag = p_gui_input;
-	if (drag.is_valid() && event_device_id != InputEvent::DEVICE_ID_EMULATION && code_completion_active && is_code_completion_drag_started) {
-		delta = -(drag->get_relative().y / (real_t)get_line_height());
-		is_valid_scroll_event = true;
-	}
-
-	if (is_valid_scroll_event) {
+		const real_t delta = pan_gesture->get_delta().y;
 		code_completion_pan_offset += delta;
 		if (code_completion_pan_offset <= -1.0) {
 			if (code_completion_current_selected > 0) {
@@ -546,7 +489,7 @@ void CodeEdit::gui_input(const Ref<InputEvent> &p_gui_input) {
 	}
 
 	Ref<InputEventMouseButton> mb = p_gui_input;
-	if (mb.is_valid() && event_device_id != InputEvent::DEVICE_ID_EMULATION) {
+	if (mb.is_valid()) {
 		// Ignore mouse clicks in IME input mode, let TextEdit handle it.
 		if (has_ime_text()) {
 			TextEdit::gui_input(p_gui_input);
@@ -677,7 +620,7 @@ void CodeEdit::gui_input(const Ref<InputEvent> &p_gui_input) {
 	}
 
 	Ref<InputEventMouseMotion> mm = p_gui_input;
-	if (mm.is_valid() && event_device_id != InputEvent::DEVICE_ID_EMULATION) {
+	if (mm.is_valid()) {
 		Vector2i mpos = mm->get_position();
 		if (is_layout_rtl()) {
 			mpos.x = get_size().x - mpos.x;

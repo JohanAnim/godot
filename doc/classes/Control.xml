@@ -1057,7 +1057,55 @@
 			The stable, unique identifier for the control. Used for UI automation and testing scripts. If not explicitly specified, defaults to the node's name.
 		</member>
 		<member name="accessibility_role" type="int" setter="set_accessibility_role" getter="get_accessibility_role" enum="AccessibilityServer.AccessibilityRole" default="0">
-			The role of the control reported to assistive tools (e.g. Button, Static Text, Tree Item). If set to Unknown, the control automatically chooses its native default role.
+			The role of the control reported to assistive tools (e.g. Button, Static Text, Tree Item).
+			- [b]Default[/b]: The control automatically chooses its native default role.
+			- [b]Unknown[/b]: The control explicitly reports an unknown role, removing or disabling its standard semantic presentation to assistive tools.
+			- [b]Default Button[/b]: Default dialog button element.
+			- [b]Audio[/b]: Audio player element.
+			- [b]Video[/b]: Video player element.
+			- [b]Static Text[/b]: Non-editable text label.
+			- [b]Container[/b]: Ignored by screen readers, used for internal structure.
+			- [b]Panel[/b]: Panel container element.
+			- [b]Button[/b]: Button element.
+			- [b]Link[/b]: Link element.
+			- [b]Check Box[/b]: Check box element.
+			- [b]Radio Button[/b]: Radio button element.
+			- [b]Check Button[/b]: Check button/toggle switch element.
+			- [b]Scroll Bar[/b]: Scroll bar element.
+			- [b]Scroll View[/b]: Scroll container element.
+			- [b]Splitter[/b]: Container splitter handle.
+			- [b]Slider[/b]: Slider element.
+			- [b]Spin Button[/b]: Spin box element.
+			- [b]Progress Indicator[/b]: Progress indicator/bar element.
+			- [b]Text Field[/b]: Editable text field.
+			- [b]Multiline Text Field[/b]: Multiline editable text field.
+			- [b]Color Picker[/b]: Color picker element.
+			- [b]Table[/b]: Table container.
+			- [b]Cell[/b]: Table/tree cell element.
+			- [b]Row[/b]: Table/tree row element.
+			- [b]Row Group[/b]: Table/tree row group.
+			- [b]Row Header[/b]: Table/tree row header.
+			- [b]Column Header[/b]: Table/tree column header.
+			- [b]Tree[/b]: Tree view element.
+			- [b]Tree Item[/b]: Tree view item.
+			- [b]List[/b]: List element.
+			- [b]List Item[/b]: List item.
+			- [b]List Box[/b]: List view element.
+			- [b]List Box Option[/b]: List view item.
+			- [b]Tab Bar[/b]: Tab bar element.
+			- [b]Tab[/b]: Tab bar item.
+			- [b]Tab Panel[/b]: Tab panel container.
+			- [b]Menu Bar[/b]: Menu bar element.
+			- [b]Menu[/b]: Popup menu element.
+			- [b]Menu Item[/b]: Popup menu item.
+			- [b]Menu Item Check Box[/b]: Checkbox menu item.
+			- [b]Menu Item Radio[/b]: Radio button menu item.
+			- [b]Image[/b]: Image element.
+			- [b]Window[/b]: Window element.
+			- [b]Title Bar[/b]: Window title bar.
+			- [b]Dialog[/b]: Dialog window element.
+			- [b]Tooltip[/b]: Tooltip element.
+			- [b]Region[/b]: Region/landmark for screen reader navigation.
 		</member>
 		<member name="accessibility_state_expanded" type="int" setter="set_accessibility_state_expanded" getter="get_accessibility_state_expanded" default="0">
 			Exposes the expanded or collapsed state of this control to assistive technologies (0 = None, 1 = Collapsed, 2 = Expanded). Used for controls that toggle the visibility of other elements.

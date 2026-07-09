@@ -924,11 +924,25 @@ void LineEdit::gui_input(const Ref<InputEvent> &p_event) {
 	// Default is ENTER and KP_ENTER. Cannot use ui_accept as default includes SPACE.
 	if (k->is_action_pressed("ui_text_submit")) {
 		emit_signal(SceneStringName(text_submitted), text);
+
+		if (editing && !keep_editing_on_text_submit) {
+			unedit();
+			emit_signal(SNAME("editing_toggled"), false);
+			if (DisplayServer::get_singleton()->has_feature(DisplayServerEnums::FEATURE_VIRTUAL_KEYBOARD) && virtual_keyboard_enabled) {
+				DisplayServer::get_singleton()->virtual_keyboard_hide();
+			}
+		}
+
 		accept_event();
 		return;
 	}
 
 	if (k->is_action("ui_cancel")) {
+		if (editing) {
+			unedit();
+			emit_signal(SNAME("editing_toggled"), false);
+		}
+
 		accept_event();
 		return;
 	}
@@ -1663,8 +1677,11 @@ void LineEdit::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_FOCUS_ENTER: {
-			_edit(virtual_keyboard_show_on_focus);
-			emit_signal(SNAME("editing_toggled"), true);
+			// Only allow editing if the LineEdit is not focused with arrow keys.
+			if (!(Input::get_singleton()->is_action_pressed("ui_up") || Input::get_singleton()->is_action_pressed("ui_down") || Input::get_singleton()->is_action_pressed("ui_left") || Input::get_singleton()->is_action_pressed("ui_right"))) {
+				_edit(virtual_keyboard_show_on_focus);
+				emit_signal(SNAME("editing_toggled"), true);
+			}
 		} break;
 
 		case NOTIFICATION_FOCUS_EXIT: {
@@ -3078,11 +3095,6 @@ PackedStringArray LineEdit::get_configuration_warnings() const {
 }
 
 void LineEdit::_shape() {
-	if (accessibility_text_root_element.is_valid()) {
-		AccessibilityServer::get_singleton()->free_element(accessibility_text_root_element);
-		accessibility_text_root_element = RID();
-	}
-
 	const Ref<Font> &font = theme_cache.font;
 	int font_size = theme_cache.font_size;
 	if (font.is_null()) {

@@ -33,6 +33,7 @@
 
 #include "core/input/input.h"
 #include "core/io/resource_loader.h"
+#include "core/string/translation_server.h"
 #include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
 #include "core/os/keyboard.h"
@@ -6218,7 +6219,53 @@ void EditorInspector::add_custom_property_description(const String &p_class, con
 String EditorInspector::get_custom_property_description(const String &p_property) const {
 	HashMap<String, String>::ConstIterator E = custom_property_descriptions.find(p_property);
 	if (E) {
-		return TTR(E->value);
+		String description = E->value;
+		if (p_property.begins_with("property|Control|accessibility_")) {
+			String locale = TranslationServer::get_singleton()->get_locale();
+			if (locale.begins_with("es")) {
+				if (p_property == "property|Control|accessibility_name") {
+					return U"El nombre accesible personalizado del control. Si est\u00e1 vac\u00edo, el control elige autom\u00e1ticamente su nombre a partir de una etiqueta (Label) hermana anterior o del contenido interno.";
+				} else if (p_property == "property|Control|accessibility_description") {
+					return U"Una breve descripci\u00f3n del prop\u00f3sito del control o su valor actual, reportada a las herramientas de asistencia.";
+				} else if (p_property == "property|Control|accessibility_automation_id") {
+					return U"El identificador estable y \u00fanico para el control. Se utiliza para automatizaci\u00f3n de IU y scripts de prueba. Si no se especifica expl\u00edcitamente, se usa por defecto el nombre del nodo.";
+				} else if (p_property == "property|Control|accessibility_role") {
+					return U"El rol del control reportado a las herramientas de asistencia (por ejemplo, Bot\u00f3n, Texto est\u00e1tico, Elemento de \u00e1rbol).\n"
+						   U"- Default: El control elige autom\u00e1ticamente su rol nativo.\n"
+						   U"- Unknown: El control reporta expl\u00edcitamente un rol desconocido, desactivando o quitando su presentaci\u00f3n sem\u00e1ntica est\u00e1ndar para las herramientas de asistencia.\n"
+						   U"- Default Button: Bot\u00f3n por defecto del di\u00e1logo.\n"
+						   U"- Audio: Reproductor de audio.\n"
+						   U"- Video: Reproductor de video.\n"
+						   U"- Static Text: Etiqueta de texto no editable.\n"
+						   U"- Container: Ignorado por lectores de pantalla, usado para estructura interna.\n"
+						   U"- Panel: Contenedor tipo panel.\n"
+						   U"- Button: Bot\u00f3n com\u00fan.\n"
+						   U"- Link: Enlace web.\n"
+						   U"- Check Box: Casilla de verificaci\u00f3n.\n"
+						   U"- Radio Button: Bot\u00f3n de opci\u00f3n radial.\n"
+						   U"- Check Button: Bot\u00f3n de alternancia o interruptor.";
+				} else if (p_property == "property|Control|accessibility_state_expanded") {
+					return U"Expone el estado expandido o colapsado de este control a las tecnolog\u00edas de asistencia (Ninguno, Colapsado, Expandido). Se usa para controles que alternan la visibilidad de otros elementos.";
+				} else if (p_property == "property|Control|accessibility_state_selected") {
+					return U"Expone el estado de selecci\u00f3n de este control a las tecnolog\u00edas de asistencia (Ninguno, No seleccionado, Seleccionado). Se usa para elementos seleccionables en controles tipo lista.";
+				} else if (p_property == "property|Control|accessibility_state_checked") {
+					return U"Expone el estado de verificaci\u00f3n o marcado de este control a las tecnolog\u00edas de asistencia (Ninguno, Desmarcado, Marcado, Mixto). Se usa para casillas de verificaci\u00f3n, botones de alternancia y botones de opci\u00f3n.";
+				} else if (p_property == "property|Control|accessibility_state_disabled") {
+					return U"Indica si este control est\u00e1 actualmente deshabilitado o inactivo para el lector de pantalla.";
+				} else if (p_property == "property|Control|accessibility_state_readonly") {
+					return U"Indica si este control es de solo lectura (no editable pero aun enfocable).";
+				} else if (p_property == "property|Control|accessibility_state_hidden") {
+					return U"Indica si este control est\u00e1 oculto para las tecnolog\u00edas de asistencia.";
+				} else if (p_property == "property|Control|accessibility_state_busy") {
+					return U"Indica si este control o sus hijos est\u00e1n ocupados actualiz\u00e1ndose, de modo que las tecnolog\u00edas de asistencia puedan esperar.";
+				} else if (p_property == "property|Control|accessibility_state_required") {
+					return U"Indica si este control es requerido para el env\u00edo de formularios.";
+				} else if (p_property == "property|Control|accessibility_live") {
+					return U"El modo en el que se actualiza una regi\u00f3n activa (live region). Una regi\u00f3n activa es un Control que se actualiza como resultado de un evento externo cuando el foco del usuario puede estar en otra parte.";
+				}
+			}
+		}
+		return TTR(description);
 	}
 	return "";
 }
@@ -6321,6 +6368,21 @@ void EditorInspector::_bind_methods() {
 }
 
 EditorInspector::EditorInspector() {
+	// Accessibility property descriptions (translatable via TTR).
+	add_custom_property_description("Control", "accessibility_name", TTRC("The custom accessible name of the control. If empty, the control automatically chooses its name from a preceding Label sibling or internal content."));
+	add_custom_property_description("Control", "accessibility_description", TTRC("A brief description of the control's purpose or current value, reported to assistive tools."));
+	add_custom_property_description("Control", "accessibility_automation_id", TTRC("The stable, unique identifier for the control. Used for UI automation and testing scripts. If not explicitly specified, defaults to the node's name."));
+	add_custom_property_description("Control", "accessibility_role", TTRC("The role of the control reported to assistive tools (e.g. Button, Static Text, Tree Item). If set to Default, the control automatically chooses its native default role. If set to Unknown, the control explicitly reports an unknown role, removing or disabling its standard semantic presentation to assistive tools."));
+	add_custom_property_description("Control", "accessibility_state_expanded", TTRC("Exposes the expanded or collapsed state of this control to assistive technologies (None, Collapsed, Expanded). Used for controls that toggle the visibility of other elements."));
+	add_custom_property_description("Control", "accessibility_state_selected", TTRC("Exposes the selection state of this control to assistive technologies (None, Unselected, Selected). Used for selectable items in list-like controls."));
+	add_custom_property_description("Control", "accessibility_state_checked", TTRC("Exposes the check or toggle state of this control to assistive technologies (None, Unchecked, Checked, Mixed). Used for check boxes, toggle buttons, and radio buttons."));
+	add_custom_property_description("Control", "accessibility_state_disabled", TTRC("Indicates if this control is currently disabled/inactive for the reader."));
+	add_custom_property_description("Control", "accessibility_state_readonly", TTRC("Indicates if this control is read-only (not editable but still focusable)."));
+	add_custom_property_description("Control", "accessibility_state_hidden", TTRC("Indicates if this control is hidden from assistive technologies."));
+	add_custom_property_description("Control", "accessibility_state_busy", TTRC("Indicates if this control or its children are currently busy updating, so assistive technologies can wait."));
+	add_custom_property_description("Control", "accessibility_state_required", TTRC("Indicates if this control is required for form submission."));
+	add_custom_property_description("Control", "accessibility_live", TTRC("The mode with which a live region updates. A live region is a Control that is updated as a result of an external event when the user's focus may be elsewhere."));
+
 	base_vbox = memnew(VBoxContainer);
 	base_vbox->set_theme_type_variation(SNAME("EditorInspectorContainer"));
 	base_vbox->set_h_size_flags(SIZE_EXPAND_FILL);

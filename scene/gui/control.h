@@ -789,6 +789,9 @@ public:
 	void set_accessibility_role(AccessibilityServerEnums::AccessibilityRole p_role);
 	AccessibilityServerEnums::AccessibilityRole get_accessibility_role() const;
 
+	void _set_accessibility_role_editor(int p_role_idx);
+	int _get_accessibility_role_editor() const;
+
 	virtual AccessibilityServerEnums::AccessibilityRole get_accessibility_default_role() const;
 
 	void set_accessibility_state_expanded(int p_expanded);

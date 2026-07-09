@@ -42,6 +42,7 @@ STATIC_ASSERT_INCOMPLETE_TYPE(class, RenderingServer);
 #include "core/os/os.h"
 #include "core/string/string_builder.h"
 #include "scene/gui/container.h"
+#include "scene/gui/label.h"
 #include "scene/gui/scroll_container.h"
 #include "scene/main/canvas_layer.h"
 #include "scene/main/scene_tree.h"
@@ -55,36 +56,6 @@ STATIC_ASSERT_INCOMPLETE_TYPE(class, RenderingServer);
 #ifdef TOOLS_ENABLED
 #include "editor/scene/gui/control_editor_plugin.h"
 #endif // TOOLS_ENABLED
-
-class LayoutRecheckCallable : public CallableCustom {
-private:
-	ObjectID owner_id;
-	Callable callback;
-	uint32_t h;
-
-	static bool compare_equal(const CallableCustom *p_a, const CallableCustom *p_b) { return p_a == p_b; }
-	static bool compare_less(const CallableCustom *p_a, const CallableCustom *p_b) { return p_a < p_b; }
-
-public:
-	virtual bool is_valid() const override { return callback.is_valid(); }
-	virtual uint32_t hash() const override { return h; }
-	virtual String get_as_text() const override { return "LayoutRecheckCallable"; }
-	virtual CompareEqualFunc get_compare_equal_func() const override { return compare_equal; }
-	virtual CompareLessFunc get_compare_less_func() const override { return compare_less; }
-	virtual ObjectID get_object() const override { return ObjectID(); }
-	virtual StringName get_method() const override { return StringName(); }
-	virtual void call(const Variant **p_arguments, int p_argcount, Variant &r_return_value, Callable::CallError &r_call_error) const override {
-		Control *owner = Object::cast_to<Control>(ObjectDB::get_instance(owner_id));
-		if (owner && !owner->is_queued_for_deletion()) {
-			owner->call_on_all_layout_pending_finished(callback);
-		}
-	}
-
-	LayoutRecheckCallable(ObjectID p_owner_id, const Callable &p_callback) :
-			owner_id(p_owner_id), callback(p_callback) {
-		h = (uint32_t)hash_murmur3_one_64((uint64_t)this);
-	}
-};
 
 // Editor plugin interoperability.
 
@@ -564,6 +535,34 @@ void Control::_validate_property(PropertyInfo &p_property) const {
 
 		p_property.hint_string = hint_string;
 		return;
+	}
+
+	if (Engine::get_singleton()->is_editor_hint()) {
+		if (p_property.name == "accessibility_role") {
+			AccessibilityServerEnums::AccessibilityRole default_role = get_accessibility_default_role();
+			Vector<String> roles = p_property.hint_string.split(",");
+			if (roles.size() > 0) {
+				String default_role_name = "Unknown";
+				if (default_role >= 0 && (int)default_role < roles.size()) {
+					default_role_name = roles[(int)default_role];
+				}
+				for (int i = 0; i < roles.size(); i++) {
+					roles.write[i] = RTR(roles[i]);
+				}
+				String translated_default_name = RTR(default_role_name);
+				roles.write[0] = vformat(RTR("Default: %s"), translated_default_name);
+				roles.insert(1, RTR("Unknown"));
+				p_property.hint_string = String(",").join(roles);
+			}
+			return;
+		} else if (p_property.name == "accessibility_state_expanded" || p_property.name == "accessibility_state_selected" || p_property.name == "accessibility_state_checked" || p_property.name == "accessibility_live") {
+			Vector<String> options = p_property.hint_string.split(",");
+			for (int i = 0; i < options.size(); i++) {
+				options.write[i] = RTR(options[i]);
+			}
+			p_property.hint_string = String(",").join(options);
+			return;
+		}
 	}
 
 	if (Engine::get_singleton()->is_editor_hint() && p_property.name == "mouse_force_pass_scroll_events") {
@@ -1778,14 +1777,10 @@ void Control::update_maximum_size() {
 	data.maximum_size_valid = false;
 
 	Size2 parent_max = data.propagate_maximum_size ? get_inner_combined_maximum_size().min(get_combined_maximum_size()) : Size2(-1, -1);
-	parent_max = parent_max.maxf(-1.0f);
 
 	for (Node *child : iterate_children()) {
 		Control *child_control = Object::cast_to<Control>(child);
 		if (child_control && !child_control->is_set_as_top_level() && child_control->data.maximum_size_valid) {
-			if (child_control->data.parent_maximum_size_cache == parent_max) {
-				continue;
-			}
 			child_control->data.parent_maximum_size_cache = parent_max;
 			child_control->update_maximum_size();
 		}
@@ -1906,11 +1901,10 @@ Size2 Control::get_inner_combined_maximum_size() const {
 }
 
 void Control::set_parent_maximum_size_cache(const Size2 &p_parent_max) {
-	const Size2 normalized = p_parent_max.maxf(-1.0f);
-	if (data.parent_maximum_size_cache == normalized) {
+	if (data.parent_maximum_size_cache == p_parent_max) {
 		return;
 	}
-	data.parent_maximum_size_cache = normalized;
+	data.parent_maximum_size_cache = p_parent_max;
 	update_maximum_size();
 }
 
@@ -2166,16 +2160,11 @@ Control *Control::get_layout_pending_control_in_tree() const {
 void Control::call_on_all_layout_pending_finished(const Callable &p_callable) {
 	Control *pending_control = get_layout_pending_control_in_tree();
 	if (pending_control != nullptr) {
-		Callable recheck(memnew(LayoutRecheckCallable(get_instance_id(), p_callable)));
-		pending_control->connect(SNAME("_layout_pending_finished"), recheck, CONNECT_ONE_SHOT);
-	} else if (p_callable.is_valid()) {
+		Callable recheck = callable_mp(this, &Control::call_on_all_layout_pending_finished).bind(p_callable);
+		pending_control->connect(SNAME("_layout_pending_finished"), recheck, CONNECT_ONE_SHOT | CONNECT_REFERENCE_COUNTED);
+	} else {
 		p_callable.call();
 	}
-#ifdef DEBUG_ENABLED
-	else {
-		ERR_PRINT(vformat("Callable \"%s\" is invalid.", p_callable));
-	}
-#endif // DEBUG_ENABLED
 }
 
 void Control::_update_minimum_size_cache() const {
@@ -2861,7 +2850,53 @@ void Control::set_accessibility_name(const String &p_name) {
 }
 
 String Control::get_accessibility_name() const {
-	return tr(data.accessibility_name);
+	String name = tr(data.accessibility_name);
+	if (name.is_empty()) {
+		AccessibilityServerEnums::AccessibilityRole active_role = data.accessibility_role;
+		if (active_role == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+			active_role = get_accessibility_default_role();
+		}
+
+		bool is_form_control = false;
+		switch (active_role) {
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_TEXT_FIELD:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_MULTILINE_TEXT_FIELD:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_PASSWORD_INPUT:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_COMBO_BOX:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_EDITABLE_COMBO_BOX:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_LIST_BOX:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BOX:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_RADIO_BUTTON:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_SWITCH:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_SLIDER:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_SPIN_BUTTON:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_TREE:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_LIST:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_SEARCH_INPUT:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_DATE_INPUT:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_DATE_TIME_INPUT:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_TIME_INPUT:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_EMAIL_INPUT:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_NUMBER_INPUT:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_PHONE_NUMBER_INPUT:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_URL_INPUT:
+				is_form_control = true;
+				break;
+			default:
+				break;
+		}
+
+		if (is_form_control && is_inside_tree() && get_parent()) {
+			int idx = get_index();
+			if (idx > 0) {
+				Label *sibling_label = Object::cast_to<Label>(get_parent()->get_child(idx - 1));
+				if (sibling_label) {
+					name = tr(sibling_label->get_text());
+				}
+			}
+		}
+	}
+	return name;
 }
 
 void Control::set_accessibility_description(const String &p_description) {
@@ -2898,6 +2933,27 @@ void Control::set_accessibility_role(AccessibilityServerEnums::AccessibilityRole
 
 AccessibilityServerEnums::AccessibilityRole Control::get_accessibility_role() const {
 	return data.accessibility_role;
+}
+
+void Control::_set_accessibility_role_editor(int p_role_idx) {
+	if (p_role_idx == 0) {
+		set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN);
+	} else if (p_role_idx == 1) {
+		set_accessibility_role((AccessibilityServerEnums::AccessibilityRole)-1);
+	} else {
+		set_accessibility_role((AccessibilityServerEnums::AccessibilityRole)(p_role_idx - 1));
+	}
+}
+
+int Control::_get_accessibility_role_editor() const {
+	AccessibilityServerEnums::AccessibilityRole r = get_accessibility_role();
+	if ((int)r == -1) {
+		return 1;
+	} else if (r == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+		return 0;
+	} else {
+		return (int)r + 1;
+	}
 }
 
 AccessibilityServerEnums::AccessibilityRole Control::get_accessibility_default_role() const {
@@ -3420,7 +3476,10 @@ Control *Control::find_prev_valid_focus() const {
 		Node *n = get_node_or_null(data.focus_prev);
 		ERR_FAIL_NULL_V_MSG(n, nullptr, "Previous focus node path is invalid: '" + String(data.focus_prev) + "'.");
 		Control *c = Object::cast_to<Control>(n);
-		return c;
+		ERR_FAIL_NULL_V_MSG(c, nullptr, "Previous focus node is not a control: '" + n->get_name() + "'.");
+		if (c->_is_focusable()) {
+			return c;
+		}
 	}
 
 	Control *from = const_cast<Control *>(this);
@@ -3479,10 +3538,6 @@ Control *Control::find_prev_valid_focus() const {
 			} else {
 				prev_child = _prev_control(prev_child);
 			}
-		}
-
-		if (!prev_child) {
-			break;
 		}
 
 		if ((prev_child->get_focus_mode_with_override() == FOCUS_ALL) || (ac_enabled && prev_child->get_focus_mode_with_override() == FOCUS_ACCESSIBILITY)) {
@@ -4717,12 +4772,12 @@ void Control::_notification(int p_notification) {
 
 			// Custom Role setting (if set to non-unknown, or if default role is non-unknown)
 			AccessibilityServerEnums::AccessibilityRole active_role = data.accessibility_role;
-			if (active_role == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
+			if ((int)active_role == -1) {
+				active_role = AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN;
+			} else if (active_role == AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
 				active_role = get_accessibility_default_role();
 			}
-			if (active_role != AccessibilityServerEnums::AccessibilityRole::ROLE_UNKNOWN) {
-				AccessibilityServer::get_singleton()->update_set_role(ae, active_role);
-			}
+			AccessibilityServer::get_singleton()->update_set_role(ae, active_role);
 
 			// Custom Expanded State setting (if set to non-none)
 			if (data.accessibility_state_expanded != 0) {
@@ -5192,6 +5247,8 @@ void Control::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_accessibility_automation_id"), &Control::get_accessibility_automation_id);
 	ClassDB::bind_method(D_METHOD("set_accessibility_role", "role"), &Control::set_accessibility_role);
 	ClassDB::bind_method(D_METHOD("get_accessibility_role"), &Control::get_accessibility_role);
+	ClassDB::bind_method(D_METHOD("_set_accessibility_role_editor", "role"), &Control::_set_accessibility_role_editor);
+	ClassDB::bind_method(D_METHOD("_get_accessibility_role_editor"), &Control::_get_accessibility_role_editor);
 	ClassDB::bind_method(D_METHOD("set_accessibility_state_expanded", "expanded"), &Control::set_accessibility_state_expanded);
 	ClassDB::bind_method(D_METHOD("get_accessibility_state_expanded"), &Control::get_accessibility_state_expanded);
 	ClassDB::bind_method(D_METHOD("set_accessibility_state_selected", "selected"), &Control::set_accessibility_state_selected);
@@ -5394,7 +5451,7 @@ void Control::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "accessibility_name"), "set_accessibility_name", "get_accessibility_name");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "accessibility_description"), "set_accessibility_description", "get_accessibility_description");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "accessibility_automation_id"), "set_accessibility_automation_id", "get_accessibility_automation_id");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_role", PROPERTY_HINT_ENUM, "Unknown,Default Button,Audio,Video,Static Text,Container,Panel,Button,Link,Check Box,Radio Button,Check Button,Scroll Bar,Scroll View,Splitter,Slider,Spin Button,Progress Indicator,Text Field,Multiline Text Field,Color Picker,Table,Cell,Row,Row Group,Group,Row Header,Column Header,Tree,Tree Item,List,List Item,List Box,List Box Option,Tab Bar,Tab,Tab Panel,Menu Bar,Menu,Menu Item,Menu Item Check Box,Menu Item Radio,Image,Window,Title Bar,Dialog,Tooltip,Region,Text Run,Combo Box,Editable Combo Box,Menu List Option,Menu List Popup,Search Input,Date Input,Date Time Input,Week Input,Month Input,Time Input,Email Input,Number Input,Password Input,Phone Number Input,Url Input,Switch,Paragraph,Label,Abbreviation,Alert,Alert Dialog,Application,Article,Banner,Blockquote,Canvas,Caption,Caret,Code,Complementary,Comment,Content Deletion,Content Insertion,Content Info,Definition,Description List,Details,Disclosure Triangle,Document,Embedded Object,Emphasis,Feed,Figure,Figure Caption,Footer,Form,Grid,Grid Cell,Header,Heading,Iframe,Iframe Presentational,Ime Candidate,Keyboard,Legend,Line Break,List Marker,Log,Main,Mark,Marquee,Math,Meter,Navigation,Note,Plugin Object,Radio Group,Root Web Area,Ruby,Ruby Annotation,Search,Section,Section Header,Section Footer,Status,Strong,Suggestion,Svg Root,Term,Timer,Toolbar,Tree Grid,Web View,List Grid,Terminal,Graphics Document,Graphics Object,Graphics Symbol,Pdf Root,Pdf Actionable Highlight"), "set_accessibility_role", "get_accessibility_role");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_role", PROPERTY_HINT_ENUM, "Unknown,Default Button,Audio,Video,Static Text,Container,Panel,Button,Link,Check Box,Radio Button,Check Button,Scroll Bar,Scroll View,Splitter,Slider,Spin Button,Progress Indicator,Text Field,Multiline Text Field,Color Picker,Table,Cell,Row,Row Group,Group,Row Header,Column Header,Tree,Tree Item,List,List Item,List Box,List Box Option,Tab Bar,Tab,Tab Panel,Menu Bar,Menu,Menu Item,Menu Item Check Box,Menu Item Radio,Image,Window,Title Bar,Dialog,Tooltip,Region,Text Run,Combo Box,Editable Combo Box,Menu List Option,Menu List Popup,Search Input,Date Input,Date Time Input,Week Input,Month Input,Time Input,Email Input,Number Input,Password Input,Phone Number Input,Url Input,Switch,Paragraph,Label,Abbreviation,Alert,Alert Dialog,Application,Article,Banner,Blockquote,Canvas,Caption,Caret,Code,Complementary,Comment,Content Deletion,Content Insertion,Content Info,Definition,Description List,Details,Disclosure Triangle,Document,Embedded Object,Emphasis,Feed,Figure,Figure Caption,Footer,Form,Grid,Grid Cell,Header,Heading,Iframe,Iframe Presentational,Ime Candidate,Keyboard,Legend,Line Break,List Marker,Log,Main,Mark,Marquee,Math,Meter,Navigation,Note,Plugin Object,Radio Group,Root Web Area,Ruby,Ruby Annotation,Search,Section,Section Header,Section Footer,Status,Strong,Suggestion,Svg Root,Term,Timer,Toolbar,Tree Grid,Web View,List Grid,Terminal,Graphics Document,Graphics Object,Graphics Symbol,Pdf Root,Pdf Actionable Highlight"), "_set_accessibility_role_editor", "_get_accessibility_role_editor");
 
 	ADD_SUBGROUP("Accessibility States", "accessibility_state_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "accessibility_state_expanded", PROPERTY_HINT_ENUM, "None,Collapsed,Expanded"), "set_accessibility_state_expanded", "get_accessibility_state_expanded");
