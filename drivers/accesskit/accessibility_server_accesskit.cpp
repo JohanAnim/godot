@@ -637,12 +637,12 @@ void AccessibilityServerAccessKit::element_set_parent(const RID &p_id, const RID
 	}
 
 	// Log parenting request.
-	AccessibilityElement *curr_parent_ae = rid_owner.get_or_null(ae->parent);
-	AccessibilityElement *new_parent_ae_log = rid_owner.get_or_null(p_parent_id);
-	print_line(vformat("[AccessKit DBG] element_set_parent: child %d ('%s', role %d) old_parent %d ('%s') -> new_parent %d ('%s')",
-		p_id.get_id(), ae->name, (int)ae->role,
-		ae->parent.get_id(), curr_parent_ae ? curr_parent_ae->name : "",
-		p_parent_id.get_id(), new_parent_ae_log ? new_parent_ae_log->name : ""));
+	// AccessibilityElement *curr_parent_ae = rid_owner.get_or_null(ae->parent);
+	// AccessibilityElement *new_parent_ae_log = rid_owner.get_or_null(p_parent_id);
+	// print_line(vformat("[AccessKit DBG] element_set_parent: child %d ('%s', role %d) old_parent %d ('%s') -> new_parent %d ('%s')",
+	// 	p_id.get_id(), ae->name, (int)ae->role,
+	// 	ae->parent.get_id(), curr_parent_ae ? curr_parent_ae->name : "",
+	// 	p_parent_id.get_id(), new_parent_ae_log ? new_parent_ae_log->name : ""));
 
 	// Remove from old parent.
 	AccessibilityElement *old_parent_ae = rid_owner.get_or_null(ae->parent);
@@ -760,14 +760,14 @@ accesskit_tree_update *AccessibilityServerAccessKit::_accessibility_build_tree_u
 				}
 				AccessibilityElement *curr_ae = self->rid_owner.get_or_null(curr);
 				if (!curr_ae) {
-					print_line(vformat("[AccessKit DBG] Connectivity break: RID %d has no element in rid_owner.", curr.get_id()));
+					// print_line(vformat("[AccessKit DBG] Connectivity break: RID %d has no element in rid_owner.", curr.get_id()));
 					break;
 				}
 				RID parent_rid = curr_ae->parent;
 				if (parent_rid.is_valid()) {
 					AccessibilityElement *parent_ae = self->rid_owner.get_or_null(parent_rid);
 					if (!parent_ae) {
-						print_line(vformat("[AccessKit DBG] Connectivity break for %d ('%s'): parent RID %d has no element.", curr.get_id(), curr_ae->name, parent_rid.get_id()));
+						// print_line(vformat("[AccessKit DBG] Connectivity break for %d ('%s'): parent RID %d has no element.", curr.get_id(), curr_ae->name, parent_rid.get_id()));
 						break;
 					}
 				}
@@ -818,14 +818,14 @@ accesskit_tree_update *AccessibilityServerAccessKit::_accessibility_build_tree_u
 				}
 				AccessibilityElement *f_curr_ae = self->rid_owner.get_or_null(f_curr);
 				if (!f_curr_ae) {
-					print_line(vformat("[AccessKit DBG] Focus connectivity break: RID %d has no element.", f_curr.get_id()));
+					// print_line(vformat("[AccessKit DBG] Focus connectivity break: RID %d has no element.", f_curr.get_id()));
 					break;
 				}
 				RID parent_rid = f_curr_ae->parent;
 				if (parent_rid.is_valid()) {
 					AccessibilityElement *parent_ae = self->rid_owner.get_or_null(parent_rid);
 					if (!parent_ae) {
-						print_line(vformat("[AccessKit DBG] Focus connectivity break for %d ('%s'): parent RID %d has no element.", f_curr.get_id(), f_curr_ae->name, parent_rid.get_id()));
+						// print_line(vformat("[AccessKit DBG] Focus connectivity break for %d ('%s'): parent RID %d has no element.", f_curr.get_id(), f_curr_ae->name, parent_rid.get_id()));
 						break;
 					}
 				}
@@ -844,12 +844,8 @@ accesskit_tree_update *AccessibilityServerAccessKit::_accessibility_build_tree_u
 						break;
 					}
 				}
-				ac_focus = (accesskit_node_id)self->focus.get_id();
-			} else {
-				print_line(vformat("[AccessKit DBG] Focus %d ('%s') is not connected to root! Reverting to root focus.", self->focus.get_id(), focus_ae->name));
 			}
-		} else {
-			print_line(vformat("[AccessKit DBG] Focus %d ('%s') is invalid (not active in tree and not in nodes_to_push)! Reverting to root focus.", self->focus.get_id(), focus_ae->name));
+			ac_focus = (accesskit_node_id)self->focus.get_id();
 		}
 	}
 

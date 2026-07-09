@@ -3281,32 +3281,27 @@ void Control::release_focus() {
 
 static Control *_next_control(Control *p_from) {
 	if (p_from->is_set_as_top_level()) {
-		return nullptr;
+		return nullptr; // Can't go above.
 	}
 
 	Control *parent = p_from->get_parent_control();
+
 	if (!parent) {
 		return nullptr;
 	}
 
-	Node *p_node = p_from->get_parent();
-	if (!p_node) {
-		return nullptr;
-	}
-
-	int idx = p_from->get_index();
-	for (int i = idx + 1; i < p_node->get_child_count(); i++) {
-		Control *c = Object::cast_to<Control>(p_node->get_child(i));
-		if (c && c->is_visible_in_tree() && !c->is_set_as_top_level()) {
-			return c;
+	int next = p_from->get_index();
+	ERR_FAIL_INDEX_V(next, parent->get_child_count(), nullptr);
+	for (int i = (next + 1); i < parent->get_child_count(); i++) {
+		Control *c = Object::cast_to<Control>(parent->get_child(i));
+		if (!c || !c->is_visible_in_tree() || c->is_set_as_top_level()) {
+			continue;
 		}
+
+		return c;
 	}
 
-	Control *p_control = Object::cast_to<Control>(p_node);
-	if (p_control) {
-		return _next_control(p_control);
-	}
-
+	// No next in parent, try the same in parent.
 	return _next_control(parent);
 }
 
@@ -3403,90 +3398,49 @@ Control *Control::find_next_valid_focus() const {
 	return nullptr;
 }
 
-static Control *_get_last_descendant(Control *p_control) {
-	Control *last = p_control;
-	while (true) {
-		Control *next_last = nullptr;
-		for (int i = last->get_child_count() - 1; i >= 0; i--) {
-			Control *c = Object::cast_to<Control>(last->get_child(i));
-			if (c && c->is_visible_in_tree() && !c->is_set_as_top_level()) {
-				next_last = c;
-				break;
-			}
-		}
-		if (next_last) {
-			last = next_last;
-		} else {
-			break;
-		}
-	}
-	return last;
-}
-
 static Control *_prev_control(Control *p_from) {
-	if (p_from->is_set_as_top_level()) {
-		return nullptr;
-	}
-
-	Control *parent = p_from->get_parent_control();
-	if (!parent) {
-		return nullptr;
-	}
-
-	Node *p_node = p_from->get_parent();
-	if (!p_node) {
-		return nullptr;
-	}
-
-	int idx = p_from->get_index();
-	for (int i = idx - 1; i >= 0; i--) {
-		Control *c = Object::cast_to<Control>(p_node->get_child(i));
-		if (c && c->is_visible_in_tree() && !c->is_set_as_top_level()) {
-			return _get_last_descendant(c);
+	for (int i = p_from->get_child_count() - 1; i >= 0; i--) {
+		Control *c = Object::cast_to<Control>(p_from->get_child(i));
+		if (!c || !c->is_visible_in_tree() || c->is_set_as_top_level()) {
+			continue;
 		}
+
+		// Find the last child as prev, try the same in the last child.
+		return _prev_control(c);
 	}
 
-	// No previous sibling → return the parent control itself if it is focusable, or search recursively if not.
-	Control *p_control = Object::cast_to<Control>(p_node);
-	if (p_control) {
-		bool ac_enabled = p_control->get_tree() && p_control->get_tree()->is_accessibility_enabled();
-		bool is_focusable = (p_control->get_focus_mode_with_override() == Control::FOCUS_ALL) || (ac_enabled && p_control->get_focus_mode_with_override() == Control::FOCUS_ACCESSIBILITY);
-		if (is_focusable) {
-			return p_control;
-		} else {
-			return _prev_control(p_control);
-		}
-	}
-
-	return nullptr;
+	return p_from; // Not found in the children, return itself.
 }
 
 Control *Control::find_prev_valid_focus() const {
 	ERR_READ_THREAD_GUARD_V(nullptr);
 
+	// If the focus property is manually overwritten, attempt to use it.
 	if (!data.focus_prev.is_empty()) {
 		Node *n = get_node_or_null(data.focus_prev);
 		ERR_FAIL_NULL_V_MSG(n, nullptr, "Previous focus node path is invalid: '" + String(data.focus_prev) + "'.");
 		Control *c = Object::cast_to<Control>(n);
-		ERR_FAIL_NULL_V_MSG(c, nullptr, "Previous focus node is not a control: '" + n->get_name() + "'.");
-		if (c->_is_focusable()) {
-			return c;
-		}
+		return c;
 	}
 
 	Control *from = const_cast<Control *>(this);
 	HashSet<Control *> checked;
 	bool ac_enabled = get_tree() && get_tree()->is_accessibility_enabled();
 
+	// Index of the current `Control` subtree within the containing `Window`.
 	int window_prev = -1;
 	checked.insert(from);
 
 	while (true) {
+		// Find prev child.
+
 		Control *prev_child = nullptr;
 
 		if (from->is_set_as_top_level() || !from->data.parent_control) {
+			// Find last of the children.
+
 			Window *win = from->data.parent_window;
-			if (win) {
+			if (win) { // Cycle through `Control` subtrees of the parent window
 				if (window_prev == -1) {
 					window_prev = from->get_index();
 					ERR_FAIL_INDEX_V(window_prev, win->get_child_count(), nullptr);
@@ -3499,17 +3453,32 @@ Control *Control::find_prev_valid_focus() const {
 						continue;
 					}
 					window_prev = prev;
-					prev_child = _get_last_descendant(c);
+					prev_child = _prev_control(c);
 					break;
 				}
 			}
 
 			if (!prev_child) {
-				prev_child = _get_last_descendant(from);
+				prev_child = _prev_control(from); // Wrap start here.
 			}
 
 		} else {
-			prev_child = _prev_control(from);
+			for (int i = (from->get_index() - 1); i >= 0; i--) {
+				Control *c = Object::cast_to<Control>(from->get_parent()->get_child(i));
+
+				if (!c || !c->is_visible_in_tree() || c->is_set_as_top_level()) {
+					continue;
+				}
+
+				prev_child = c;
+				break;
+			}
+
+			if (!prev_child) {
+				prev_child = from->data.parent_control;
+			} else {
+				prev_child = _prev_control(prev_child);
+			}
 		}
 
 		if (!prev_child) {
@@ -3521,11 +3490,11 @@ Control *Control::find_prev_valid_focus() const {
 		}
 
 		if (checked.has(prev_child)) {
-			return nullptr;
+			return nullptr; // Stuck in a loop with no prev control.
 		}
 		checked.insert(prev_child);
 
-		from = prev_child;
+		from = prev_child; // Try to find the prev control with focus mode FOCUS_ALL.
 	}
 
 	return nullptr;
@@ -3689,37 +3658,6 @@ Control *Control::find_valid_focus_neighbor(Side p_side) const {
 	return const_cast<Control *>(this)->_get_focus_neighbor(p_side);
 }
 
-// Returns true if p_a appears before p_b in scene tree (depth-first, child-index) order.
-// Used as tie-breaker when spatial navigation finds two controls at the same distance.
-static bool _is_first_in_document_order(const Control *p_a, const Control *p_b) {
-	const Node *n1 = p_a;
-	const Node *n2 = p_b;
-
-	// Walk up to root, collecting parent chains.
-	LocalVector<const Node *> path1, path2;
-	while (n1) { path1.push_back(n1); n1 = n1->get_parent(); }
-	while (n2) { path2.push_back(n2); n2 = n2->get_parent(); }
-
-	// Find the first point where the paths diverge (from root).
-	int idx1 = (int)path1.size() - 1;
-	int idx2 = (int)path2.size() - 1;
-	while (idx1 >= 0 && idx2 >= 0 && path1[idx1] == path2[idx2]) {
-		idx1--;
-		idx2--;
-	}
-
-	if (idx1 < 0 && idx2 < 0) {
-		return false; // Same node.
-	}
-	if (idx1 < 0) {
-		return true; // p_a is an ancestor of p_b — ancestors precede descendants.
-	}
-	if (idx2 < 0) {
-		return false; // p_b is an ancestor of p_a.
-	}
-	return path1[idx1]->get_index() < path2[idx2]->get_index();
-}
-
 void Control::_window_find_focus_neighbor(const Vector2 &p_dir, Node *p_at, const Rect2 &p_rect, const Rect2 &p_clamp, real_t p_min, real_t &r_closest_dist_squared, Control **r_closest) {
 	if (Object::cast_to<Viewport>(p_at)) {
 		return; // Bye.
@@ -3771,12 +3709,17 @@ void Control::_window_find_focus_neighbor(const Vector2 &p_dir, Node *p_at, cons
 				r_closest_dist_squared = min_d_squared;
 				*r_closest = c;
 			} else if (min_d_squared == r_closest_dist_squared) {
-				// Tie-break in favor of the control that appears first in scene tree
-				// (document) order. Spatial tie-breaking (preferring the element most
-				// aligned with p_dir) is wrong when the source is wide and two
-				// side-by-side targets are at the same Y — it picks the more centered
-				// one, which in a LTR layout is the second (rightmost) control.
-				if (_is_first_in_document_order(c, *r_closest)) {
+				// Tie-breaking aims to address situations where a potential focus neighbor's bounding rect
+				// is right next to the currently focused control (e.g. in BoxContainer with
+				// separation overridden to 0). This needs specific handling so that the correct
+				// focus neighbor is selected.
+
+				Point2 p_center = p_rect.get_center();
+				Control *closest = *r_closest;
+				Point2 closest_center = closest->get_global_rect().get_center();
+
+				// Tie-break in favor of the control most aligned with p_dir.
+				if (Math::abs(p_dir.cross(cC_origin)) < Math::abs(p_dir.cross(closest_center - p_center))) {
 					*r_closest = c;
 				}
 			}

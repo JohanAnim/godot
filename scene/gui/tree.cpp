@@ -138,11 +138,55 @@ void TreeItem::_change_tree(Tree *p_tree) {
 		}
 
 		if (tree->selected_item == this) {
+			TreeItem *new_selected = nullptr;
+			if (p_tree == nullptr) { // Only select another item if we are leaving the tree permanently.
+				int col = tree->selected_col;
+				if (col < 0 || col >= cells.size()) {
+					col = 0;
+				}
+
+				// Search previous visible items first.
+				new_selected = get_prev_visible(false);
+				while (new_selected) {
+					if (new_selected != this && col < new_selected->cells.size() && new_selected->cells[col].selectable) {
+						break;
+					}
+					new_selected = new_selected->get_prev_visible(false);
+				}
+
+				// If not found, search next visible items.
+				if (!new_selected) {
+					new_selected = get_next_visible(false);
+					while (new_selected) {
+						if (new_selected != this && col < new_selected->cells.size() && new_selected->cells[col].selectable) {
+							// Ensure it is not a descendant of 'this'.
+							bool is_descendant = false;
+							TreeItem *p = new_selected;
+							while (p) {
+								if (p == this) {
+									is_descendant = true;
+									break;
+								}
+								p = p->get_parent();
+							}
+							if (!is_descendant) {
+								break;
+							}
+						}
+						new_selected = new_selected->get_next_visible(false);
+					}
+				}
+			}
+
 			for (int i = 0; i < tree->selected_item->cells.size(); i++) {
 				tree->selected_item->cells.write[i].selected = false;
 			}
 
 			tree->selected_item = nullptr;
+
+			if (new_selected && new_selected != this) {
+				new_selected->select(tree->selected_col, true);
+			}
 		}
 
 		if (tree->drop_mode_over == this) {
@@ -3947,7 +3991,7 @@ void Tree::gui_input(const Ref<InputEvent> &p_event) {
 			_go_up();
 			if (selected_item != prev_sel) {
 				accept_event(); // Internal navigation succeeded.
-			} else if (root && (!cursor_can_exit_tree || (get_tree() && get_tree()->is_accessibility_enabled()))) {
+			} else if (root && !cursor_can_exit_tree) {
 				accept_event(); // Boundary + no-exit → consume to stay inside.
 			}
 			// else: at boundary with cursor_can_exit_tree → let Viewport handle with
@@ -3967,7 +4011,7 @@ void Tree::gui_input(const Ref<InputEvent> &p_event) {
 			_go_down();
 			if (selected_item != prev_sel) {
 				accept_event(); // Internal navigation succeeded.
-			} else if (root && (!cursor_can_exit_tree || (get_tree() && get_tree()->is_accessibility_enabled()))) {
+			} else if (root && !cursor_can_exit_tree) {
 				accept_event(); // Boundary + no-exit → consume to stay inside.
 			}
 			// else: at boundary with cursor_can_exit_tree → let Viewport handle.
@@ -6253,12 +6297,11 @@ void Tree::clear() {
 		pressing_for_editor = false;
 	}
 
+	selected_item = nullptr;
 	if (root) {
 		memdelete(root);
 		root = nullptr;
 	};
-
-	selected_item = nullptr;
 	edited_item = nullptr;
 	popup_edited_item = nullptr;
 	popup_pressing_edited_item = nullptr;
@@ -8037,6 +8080,7 @@ Tree::Tree() {
 }
 
 Tree::~Tree() {
+	selected_item = nullptr;
 	if (root) {
 		memdelete(root);
 	}
