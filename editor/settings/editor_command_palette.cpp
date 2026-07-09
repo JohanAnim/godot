@@ -40,7 +40,7 @@
 #include "editor/gui/filter_line_edit.h"
 #include "editor/settings/editor_settings.h"
 #include "editor/themes/editor_scale.h"
-#include "scene/gui/margin_container.h"
+
 #include "scene/gui/tree.h"
 
 EditorCommandPalette *EditorCommandPalette::singleton = nullptr;
@@ -331,16 +331,8 @@ EditorCommandPalette::EditorCommandPalette() {
 	command_search_box->set_accessibility_name(TTRC("Filter Commands"));
 	command_search_box->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 	command_search_box->connect(SceneStringName(text_changed), callable_mp(this, &EditorCommandPalette::_update_command_search));
-	MarginContainer *margin_container_csb = memnew(MarginContainer);
-	margin_container_csb->add_child(command_search_box);
-	vbc->add_child(margin_container_csb);
+	vbc->add_child(command_search_box);
 	register_text_enter(command_search_box);
-
-	MarginContainer *mc = memnew(MarginContainer);
-	mc->set_theme_type_variation("NoBorderHorizontalWindow");
-	mc->set_v_size_flags(Control::SIZE_EXPAND_FILL);
-	mc->set_h_size_flags(Control::SIZE_EXPAND_FILL);
-	vbc->add_child(mc);
 
 	search_options = memnew(Tree);
 	command_search_box->set_forward_control(search_options);
@@ -352,7 +344,9 @@ EditorCommandPalette::EditorCommandPalette() {
 	search_options->set_columns(2);
 	search_options->set_column_custom_minimum_width(0, int(8 * EDSCALE));
 	search_options->set_scroll_hint_mode(Tree::SCROLL_HINT_MODE_BOTH);
-	mc->add_child(search_options, true);
+	search_options->set_v_size_flags(Control::SIZE_EXPAND_FILL);
+	search_options->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+	vbc->add_child(search_options);
 }
 
 Ref<Shortcut> ED_SHORTCUT_AND_COMMAND(const String &p_path, const String &p_name, Key p_keycode, String p_command_name) {

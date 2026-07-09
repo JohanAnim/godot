@@ -469,6 +469,7 @@ void TabBar::_notification(int p_what) {
 					AccessibilityServer::get_singleton()->update_add_action(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityAction::ACTION_FOCUS, callable_mp(this, &TabBar::_accessibility_action_focus).bind(i));
 
 					AccessibilityServer::get_singleton()->update_set_list_item_index(item.accessibility_item_element, i);
+					AccessibilityServer::get_singleton()->update_set_list_item_count(item.accessibility_item_element, tabs.size());
 					AccessibilityServer::get_singleton()->update_set_name(item.accessibility_item_element, atr(item.text));
 					AccessibilityServer::get_singleton()->update_set_list_item_selected(item.accessibility_item_element, i == current);
 					AccessibilityServer::get_singleton()->update_set_flag(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, item.disabled);

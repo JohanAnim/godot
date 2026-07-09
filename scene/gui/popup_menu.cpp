@@ -1493,6 +1493,7 @@ void PopupMenu::_notification(int p_what) {
 
 					AccessibilityServer::get_singleton()->update_add_action(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityAction::ACTION_CLICK, callable_mp(this, &PopupMenu::_accessibility_action_click).bind(i));
 					AccessibilityServer::get_singleton()->update_set_list_item_index(item.accessibility_item_element, item_index);
+					AccessibilityServer::get_singleton()->update_set_list_item_count(item.accessibility_item_element, item_count);
 					AccessibilityServer::get_singleton()->update_set_list_item_selected(item.accessibility_item_element, i == mouse_over);
 					String item_name = item.xl_text;
 					String accel_text = _get_accel_text(item);

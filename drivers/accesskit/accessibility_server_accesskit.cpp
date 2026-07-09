@@ -82,7 +82,7 @@ bool AccessibilityServerAccessKit::window_create(DisplayServerEnums::WindowID p_
 
 void AccessibilityServerAccessKit::window_destroy(DisplayServerEnums::WindowID p_window_id) {
 	WindowData *wd = windows.getptr(p_window_id);
-	ERR_FAIL_NULL(wd);
+	if (!wd) { return; }
 
 	print_verbose(vformat("Accessibility: window %d adapter destroyed.", p_window_id));
 
@@ -103,7 +103,7 @@ void AccessibilityServerAccessKit::window_destroy(DisplayServerEnums::WindowID p
 void AccessibilityServerAccessKit::_accessibility_deactivation_callback(void *p_user_data) {
 	DisplayServerEnums::WindowID window_id = (DisplayServerEnums::WindowID)(size_t)p_user_data;
 	WindowData *wd = static_cast<AccessibilityServerAccessKit *>(get_singleton())->windows.getptr(window_id);
-	ERR_FAIL_NULL(wd);
+	if (!wd) { return; }
 
 	print_verbose(vformat("Accessibility: window %d adapter deactivated.", window_id));
 
@@ -127,7 +127,7 @@ void AccessibilityServerAccessKit::_accessibility_action_callback(struct accessk
 
 	RID rid = RID::from_uint64(p_request->target_node);
 	AccessibilityElement *ae = static_cast<AccessibilityServerAccessKit *>(get_singleton())->rid_owner.get_or_null(rid);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 
 	Variant rq_data;
 	if (!ae->actions.has(p_request->action) && ae->role == ACCESSKIT_ROLE_TEXT_RUN && p_request->action == ACCESSKIT_ACTION_SCROLL_INTO_VIEW) {
@@ -241,7 +241,7 @@ accesskit_tree_update *AccessibilityServerAccessKit::_accessibility_initial_tree
 
 void AccessibilityServerAccessKit::set_window_callbacks(DisplayServerEnums::WindowID p_window_id, const Callable &p_activate_callable, const Callable &p_deativate_callable) {
 	WindowData *wd = static_cast<AccessibilityServerAccessKit *>(get_singleton())->windows.getptr(p_window_id);
-	ERR_FAIL_NULL(wd);
+	if (!wd) { return; }
 
 	wd->activate = p_activate_callable;
 	wd->deactivate = p_deativate_callable;
@@ -293,10 +293,10 @@ RID AccessibilityServerAccessKit::create_element(DisplayServerEnums::WindowID p_
 
 RID AccessibilityServerAccessKit::create_sub_element(const RID &p_parent_rid, AccessibilityServerEnums::AccessibilityRole p_role, int p_insert_pos) {
 	AccessibilityElement *parent_ae = rid_owner.get_or_null(p_parent_rid);
-	ERR_FAIL_NULL_V(parent_ae, RID());
+	if (!parent_ae) { return RID(); }
 
 	WindowData *wd = windows.getptr(parent_ae->window_id);
-	ERR_FAIL_NULL_V(wd, RID());
+	if (!wd) { return RID(); }
 
 	AccessibilityElement *ae = memnew(AccessibilityElement);
 	ae->role = _accessibility_role(p_role);
@@ -321,10 +321,10 @@ RID AccessibilityServerAccessKit::create_sub_element(const RID &p_parent_rid, Ac
 
 RID AccessibilityServerAccessKit::create_sub_text_edit_elements(const RID &p_parent_rid, const RID &p_shaped_text, float p_min_height, int p_insert_pos, bool p_is_last_line) {
 	AccessibilityElement *parent_ae = rid_owner.get_or_null(p_parent_rid);
-	ERR_FAIL_NULL_V(parent_ae, RID());
+	if (!parent_ae) { return RID(); }
 
 	WindowData *wd = windows.getptr(parent_ae->window_id);
-	ERR_FAIL_NULL_V(wd, RID());
+	if (!wd) { return RID(); }
 
 	AccessibilityElement *root_ae = memnew(AccessibilityElement);
 	root_ae->role = ACCESSKIT_ROLE_GENERIC_CONTAINER;
@@ -630,10 +630,19 @@ void AccessibilityServerAccessKit::free_element(const RID &p_id) {
 
 void AccessibilityServerAccessKit::element_set_parent(const RID &p_id, const RID &p_parent_id) {
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
+
 	if (ae->parent == p_parent_id) {
 		return;
 	}
+
+	// Log parenting request.
+	AccessibilityElement *curr_parent_ae = rid_owner.get_or_null(ae->parent);
+	AccessibilityElement *new_parent_ae_log = rid_owner.get_or_null(p_parent_id);
+	print_line(vformat("[AccessKit DBG] element_set_parent: child %d ('%s', role %d) old_parent %d ('%s') -> new_parent %d ('%s')",
+		p_id.get_id(), ae->name, (int)ae->role,
+		ae->parent.get_id(), curr_parent_ae ? curr_parent_ae->name : "",
+		p_parent_id.get_id(), new_parent_ae_log ? new_parent_ae_log->name : ""));
 
 	// Remove from old parent.
 	AccessibilityElement *old_parent_ae = rid_owner.get_or_null(ae->parent);
@@ -674,7 +683,7 @@ void AccessibilityServerAccessKit::element_set_meta(const RID &p_id, const Varia
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	ae->meta = p_meta;
 }
 
@@ -696,7 +705,7 @@ void AccessibilityServerAccessKit::update_set_focus(const RID &p_id) {
 
 RID AccessibilityServerAccessKit::get_window_root(DisplayServerEnums::WindowID p_window_id) const {
 	const WindowData *wd = windows.getptr(p_window_id);
-	ERR_FAIL_NULL_V(wd, RID());
+	if (!wd) { return RID(); }
 
 	return wd->root_id;
 }
@@ -726,7 +735,11 @@ accesskit_tree_update *AccessibilityServerAccessKit::_accessibility_build_tree_u
 	// First pass: determine which RIDs will actually be pushed to the tree update.
 	// A node is "pushable" if it has a valid node pointer AND is connected to the root.
 	HashSet<RID> nodes_to_push;
+	Vector<RID> update_list;
 	for (const RID &rid : wd.update) {
+		update_list.push_back(rid);
+	}
+	for (const RID &rid : update_list) {
 		AccessibilityElement *ae = self->rid_owner.get_or_null(rid);
 		if (ae && ae->node) {
 			bool connected = false;
@@ -747,29 +760,37 @@ accesskit_tree_update *AccessibilityServerAccessKit::_accessibility_build_tree_u
 				}
 				AccessibilityElement *curr_ae = self->rid_owner.get_or_null(curr);
 				if (!curr_ae) {
+					print_line(vformat("[AccessKit DBG] Connectivity break: RID %d has no element in rid_owner.", curr.get_id()));
 					break;
 				}
 				RID parent_rid = curr_ae->parent;
 				if (parent_rid.is_valid()) {
 					AccessibilityElement *parent_ae = self->rid_owner.get_or_null(parent_rid);
 					if (!parent_ae) {
+						print_line(vformat("[AccessKit DBG] Connectivity break for %d ('%s'): parent RID %d has no element.", curr.get_id(), curr_ae->name, parent_rid.get_id()));
 						break;
-					}
-					if (!parent_ae->children.has(curr)) {
-						break; // Broken parent-child relationship.
 					}
 				}
 				curr = parent_rid;
 			}
 			if (connected) {
-				nodes_to_push.insert(rid);
+				// Ensure all ancestors of this node are also in nodes_to_push to guarantee UIA hierarchy integrity.
+				RID anc = rid;
+				while (anc.is_valid()) {
+					AccessibilityElement *anc_ae = self->rid_owner.get_or_null(anc);
+					if (anc_ae) {
+						self->_ensure_node(anc, anc_ae);
+						nodes_to_push.insert(anc);
+						anc = anc_ae->parent;
+					} else {
+						break;
+					}
+				}
 			} else {
 				ae->active_in_tree = false;
 			}
 		}
 	}
-
-	uint32_t update_size = nodes_to_push.size();
 
 	// Validate focus: ensure the focused node will exist in the tree after this update.
 	AccessibilityElement *focus_ae = self->rid_owner.get_or_null(self->focus);
@@ -797,22 +818,70 @@ accesskit_tree_update *AccessibilityServerAccessKit::_accessibility_build_tree_u
 				}
 				AccessibilityElement *f_curr_ae = self->rid_owner.get_or_null(f_curr);
 				if (!f_curr_ae) {
+					print_line(vformat("[AccessKit DBG] Focus connectivity break: RID %d has no element.", f_curr.get_id()));
 					break;
 				}
 				RID parent_rid = f_curr_ae->parent;
 				if (parent_rid.is_valid()) {
 					AccessibilityElement *parent_ae = self->rid_owner.get_or_null(parent_rid);
-					if (!parent_ae || !parent_ae->children.has(f_curr)) {
-						break; // Broken parent-child relationship.
+					if (!parent_ae) {
+						print_line(vformat("[AccessKit DBG] Focus connectivity break for %d ('%s'): parent RID %d has no element.", f_curr.get_id(), f_curr_ae->name, parent_rid.get_id()));
+						break;
 					}
 				}
 				f_curr = parent_rid;
 			}
 			if (focus_connected) {
+				// Ensure all ancestors of the focused node are also in nodes_to_push to guarantee UIA hierarchy integrity.
+				RID anc = self->focus;
+				while (anc.is_valid()) {
+					AccessibilityElement *anc_ae = self->rid_owner.get_or_null(anc);
+					if (anc_ae) {
+						self->_ensure_node(anc, anc_ae);
+						nodes_to_push.insert(anc);
+						anc = anc_ae->parent;
+					} else {
+						break;
+					}
+				}
 				ac_focus = (accesskit_node_id)self->focus.get_id();
+			} else {
+				print_line(vformat("[AccessKit DBG] Focus %d ('%s') is not connected to root! Reverting to root focus.", self->focus.get_id(), focus_ae->name));
+			}
+		} else {
+			print_line(vformat("[AccessKit DBG] Focus %d ('%s') is invalid (not active in tree and not in nodes_to_push)! Reverting to root focus.", self->focus.get_id(), focus_ae->name));
+		}
+	}
+
+	// Expand nodes_to_push to include all active descendants of nodes already in nodes_to_push.
+	// This ensures that UIA parent-child relationships and caches are fully invalidated and updated together.
+	Vector<RID> queue;
+	for (const RID &rid : nodes_to_push) {
+		queue.push_back(rid);
+	}
+	int queue_idx = 0;
+	while (queue_idx < queue.size()) {
+		RID parent_rid = queue[queue_idx++];
+		AccessibilityElement *parent_ae = self->rid_owner.get_or_null(parent_rid);
+		if (parent_ae && (parent_ae->role == ACCESSKIT_ROLE_TREE || parent_ae->role == ACCESSKIT_ROLE_TREE_ITEM)) {
+			for (const RID &child_rid : parent_ae->children) {
+				AccessibilityElement *child_ae = self->rid_owner.get_or_null(child_rid);
+				if (child_ae && child_ae->parent == parent_rid && child_ae->role == ACCESSKIT_ROLE_TREE_ITEM) {
+					bool child_in_update = wd.update.has(child_rid);
+					bool child_previously_active = child_ae->active_in_tree;
+					if (child_in_update || child_previously_active) {
+						if (!nodes_to_push.has(child_rid)) {
+							self->_ensure_node(child_rid, child_ae);
+							nodes_to_push.insert(child_rid);
+							queue.push_back(child_rid);
+						}
+					}
+				}
 			}
 		}
 	}
+
+	uint32_t update_size = nodes_to_push.size();
 
 	accesskit_tree_update *tree_update = (update_size > 0) ? accesskit_tree_update_with_capacity_and_focus(update_size, ac_focus) : accesskit_tree_update_with_focus(ac_focus);
 
@@ -943,7 +1012,7 @@ void AccessibilityServerAccessKit::update_if_active(const Callable &p_callable) 
 
 _FORCE_INLINE_ void AccessibilityServerAccessKit::_ensure_node(const RID &p_id, AccessibilityElement *p_ae) {
 	WindowData *wd = windows.getptr(p_ae->window_id);
-	ERR_FAIL_NULL(wd);
+	if (!wd) { return; }
 	wd->update.insert(p_id);
 
 	if (unlikely(!p_ae->node)) {
@@ -973,8 +1042,12 @@ _FORCE_INLINE_ void AccessibilityServerAccessKit::_ensure_node(const RID &p_id, 
 			accesskit_node_set_size_of_set(p_ae->node, p_ae->list_item_count);
 		}
 
-		if (p_ae->list_item_index > 0) {
-			accesskit_node_set_position_in_set(p_ae->node, p_ae->list_item_index);
+		if (p_ae->list_item_index >= 0) {
+			accesskit_node_set_position_in_set(p_ae->node, p_ae->list_item_index + 1);
+		}
+
+		if (p_ae->list_item_level > 0) {
+			accesskit_node_set_level(p_ae->node, p_ae->list_item_level);
 		}
 
 		if (p_ae->checked_state == 1) {
@@ -1079,7 +1152,7 @@ _FORCE_INLINE_ void AccessibilityServerAccessKit::_ensure_node(const RID &p_id, 
 void AccessibilityServerAccessKit::set_window_rect(DisplayServerEnums::WindowID p_window_id, const Rect2 &p_rect_out, const Rect2 &p_rect_in) {
 #ifdef LINUXBSD_ENABLED
 	const WindowData *wd = windows.getptr(p_window_id);
-	ERR_FAIL_NULL(wd);
+	if (!wd) { return; }
 
 	accesskit_rect outer_bounds = { p_rect_out.position.x, p_rect_out.position.y, p_rect_out.position.x + p_rect_out.size.width, p_rect_out.position.y + p_rect_out.size.height };
 	accesskit_rect inner_bounds = { p_rect_in.position.x, p_rect_in.position.y, p_rect_in.position.x + p_rect_in.size.width, p_rect_in.position.y + p_rect_in.size.height };
@@ -1089,7 +1162,7 @@ void AccessibilityServerAccessKit::set_window_rect(DisplayServerEnums::WindowID 
 
 void AccessibilityServerAccessKit::set_window_focused(DisplayServerEnums::WindowID p_window_id, bool p_focused) {
 	const WindowData *wd = windows.getptr(p_window_id);
-	ERR_FAIL_NULL(wd);
+	if (!wd) { return; }
 
 #ifdef LINUXBSD_ENABLED
 	accesskit_unix_adapter_update_window_focus_state(wd->adapter, p_focused);
@@ -1107,7 +1180,7 @@ void AccessibilityServerAccessKit::update_set_role(const RID &p_id, Accessibilit
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	if (ae->role == _accessibility_role(p_role)) {
 		return;
 	}
@@ -1121,7 +1194,7 @@ void AccessibilityServerAccessKit::update_set_name(const RID &p_id, const String
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->name = p_name;
@@ -1151,7 +1224,7 @@ void AccessibilityServerAccessKit::update_set_braille_label(const RID &p_id, con
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (!p_name.is_empty()) {
@@ -1165,7 +1238,7 @@ void AccessibilityServerAccessKit::update_set_braille_role_description(const RID
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (!p_description.is_empty()) {
@@ -1179,7 +1252,7 @@ void AccessibilityServerAccessKit::update_set_extra_info(const RID &p_id, const 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->name_extra_info = p_name_extra_info;
@@ -1195,7 +1268,7 @@ void AccessibilityServerAccessKit::update_set_description(const RID &p_id, const
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->description = p_description;
@@ -1216,7 +1289,7 @@ void AccessibilityServerAccessKit::update_set_value(const RID &p_id, const Strin
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (!p_value.is_empty()) {
@@ -1235,7 +1308,7 @@ void AccessibilityServerAccessKit::update_set_tooltip(const RID &p_id, const Str
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->tooltip = p_tooltip;
@@ -1290,7 +1363,7 @@ void AccessibilityServerAccessKit::update_set_bounds(const RID &p_id, const Rect
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_rect rect;
@@ -1305,7 +1378,7 @@ void AccessibilityServerAccessKit::update_set_transform(const RID &p_id, const T
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_affine transform = { p_transform.columns[0][0], p_transform.columns[0][1], p_transform.columns[1][0], p_transform.columns[1][1], p_transform.columns[2][0], p_transform.columns[2][1] };
@@ -1316,7 +1389,7 @@ void AccessibilityServerAccessKit::update_clear_children(const RID &p_id) {
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	WindowData *wd = windows.getptr(ae->window_id);
@@ -1346,7 +1419,7 @@ void AccessibilityServerAccessKit::update_add_child(const RID &p_id, const RID &
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_child_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1378,7 +1451,7 @@ void AccessibilityServerAccessKit::update_add_related_controls(const RID &p_id, 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_related_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1391,7 +1464,7 @@ void AccessibilityServerAccessKit::update_add_related_details(const RID &p_id, c
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_related_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1404,7 +1477,7 @@ void AccessibilityServerAccessKit::update_add_related_described_by(const RID &p_
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_related_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1417,7 +1490,7 @@ void AccessibilityServerAccessKit::update_add_related_flow_to(const RID &p_id, c
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_related_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1430,7 +1503,10 @@ void AccessibilityServerAccessKit::update_add_related_labeled_by(const RID &p_id
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
+	if (p_related_id.is_null()) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_related_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1443,7 +1519,10 @@ void AccessibilityServerAccessKit::update_add_related_radio_group(const RID &p_i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
+	if (p_related_id.is_null()) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_related_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1456,7 +1535,10 @@ void AccessibilityServerAccessKit::update_set_active_descendant(const RID &p_id,
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
+	if (p_other_id.is_null()) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1469,7 +1551,10 @@ void AccessibilityServerAccessKit::update_set_next_on_line(const RID &p_id, cons
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
+	if (p_other_id.is_null()) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1482,7 +1567,10 @@ void AccessibilityServerAccessKit::update_set_previous_on_line(const RID &p_id, 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
+	if (p_other_id.is_null()) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1495,7 +1583,7 @@ void AccessibilityServerAccessKit::update_set_member_of(const RID &p_id, const R
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_group_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1508,7 +1596,7 @@ void AccessibilityServerAccessKit::update_set_in_page_link_target(const RID &p_i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1521,7 +1609,7 @@ void AccessibilityServerAccessKit::update_set_error_message(const RID &p_id, con
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
 	ERR_FAIL_NULL(other_ae);
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
@@ -1534,7 +1622,7 @@ void AccessibilityServerAccessKit::update_set_live(const RID &p_id, Accessibilit
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	switch (p_live) {
@@ -1554,7 +1642,7 @@ void AccessibilityServerAccessKit::update_add_action(const RID &p_id, Accessibil
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->actions[_accessibility_action(p_action)] = p_callable;
@@ -1566,7 +1654,7 @@ void AccessibilityServerAccessKit::update_add_custom_action(const RID &p_id, int
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (!p_action_description.is_empty()) {
@@ -1585,7 +1673,7 @@ void AccessibilityServerAccessKit::update_set_table_row_count(const RID &p_id, i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_row_count(ae->node, p_count);
@@ -1595,7 +1683,7 @@ void AccessibilityServerAccessKit::update_set_table_column_count(const RID &p_id
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_column_count(ae->node, p_count);
@@ -1605,7 +1693,7 @@ void AccessibilityServerAccessKit::update_set_table_row_index(const RID &p_id, i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_row_index(ae->node, p_index);
@@ -1615,7 +1703,7 @@ void AccessibilityServerAccessKit::update_set_table_column_index(const RID &p_id
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_column_index(ae->node, p_index);
@@ -1625,7 +1713,7 @@ void AccessibilityServerAccessKit::update_set_table_cell_position(const RID &p_i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_row_index(ae->node, p_row_index);
@@ -1636,7 +1724,7 @@ void AccessibilityServerAccessKit::update_set_table_cell_span(const RID &p_id, i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_row_span(ae->node, p_row_span);
@@ -1647,7 +1735,7 @@ void AccessibilityServerAccessKit::update_set_list_item_count(const RID &p_id, i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->list_item_count = p_size;
@@ -1658,20 +1746,21 @@ void AccessibilityServerAccessKit::update_set_list_item_index(const RID &p_id, i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->list_item_index = p_index;
-	accesskit_node_set_position_in_set(ae->node, p_index);
+	accesskit_node_set_position_in_set(ae->node, p_index + 1);
 }
 
 void AccessibilityServerAccessKit::update_set_list_item_level(const RID &p_id, int p_level) {
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
+	ae->list_item_level = p_level;
 	accesskit_node_set_level(ae->node, p_level);
 }
 
@@ -1679,7 +1768,7 @@ void AccessibilityServerAccessKit::update_set_list_item_selected(const RID &p_id
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->selected_state = p_selected ? 2 : 1;
@@ -1690,7 +1779,7 @@ void AccessibilityServerAccessKit::update_set_list_item_expanded(const RID &p_id
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->expanded_state = p_expanded ? 2 : 1;
@@ -1701,7 +1790,7 @@ void AccessibilityServerAccessKit::update_set_author_id(const RID &p_id, const S
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->author_id = p_author_id;
@@ -1716,7 +1805,7 @@ void AccessibilityServerAccessKit::update_set_expanded(const RID &p_id, int p_st
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->expanded_state = p_state;
@@ -1733,7 +1822,7 @@ void AccessibilityServerAccessKit::update_set_checked_state(const RID &p_id, int
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->checked_state = p_state;
@@ -1752,7 +1841,7 @@ void AccessibilityServerAccessKit::update_set_selected_state(const RID &p_id, in
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->selected_state = p_state;
@@ -1769,7 +1858,7 @@ void AccessibilityServerAccessKit::update_set_popup_type(const RID &p_id, Access
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	switch (p_popup) {
@@ -1796,7 +1885,7 @@ void AccessibilityServerAccessKit::update_set_checked(const RID &p_id, bool p_ch
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->checked_state = p_checekd ? 2 : 1;
@@ -1811,7 +1900,7 @@ void AccessibilityServerAccessKit::update_set_num_value(const RID &p_id, double 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_numeric_value(ae->node, p_position);
@@ -1822,7 +1911,7 @@ void AccessibilityServerAccessKit::update_set_num_range(const RID &p_id, double 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_min_numeric_value(ae->node, p_min);
@@ -1833,7 +1922,7 @@ void AccessibilityServerAccessKit::update_set_num_step(const RID &p_id, double p
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_numeric_value_step(ae->node, p_step);
@@ -1843,7 +1932,7 @@ void AccessibilityServerAccessKit::update_set_num_jump(const RID &p_id, double p
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_numeric_value_jump(ae->node, p_jump);
@@ -1853,7 +1942,7 @@ void AccessibilityServerAccessKit::update_set_scroll_x(const RID &p_id, double p
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_scroll_x(ae->node, p_position);
@@ -1863,7 +1952,7 @@ void AccessibilityServerAccessKit::update_set_scroll_x_range(const RID &p_id, do
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_scroll_x_min(ae->node, p_min);
@@ -1874,7 +1963,7 @@ void AccessibilityServerAccessKit::update_set_scroll_y(const RID &p_id, double p
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_scroll_y(ae->node, p_position);
@@ -1884,7 +1973,7 @@ void AccessibilityServerAccessKit::update_set_scroll_y_range(const RID &p_id, do
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_scroll_y_min(ae->node, p_min);
@@ -1895,7 +1984,7 @@ void AccessibilityServerAccessKit::update_set_text_decorations(const RID &p_id, 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_color color;
@@ -1925,7 +2014,7 @@ void AccessibilityServerAccessKit::update_set_text_align(const RID &p_id, Horizo
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	switch (p_align) {
@@ -1948,7 +2037,7 @@ void AccessibilityServerAccessKit::update_set_text_selection(const RID &p_id, co
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	AccessibilityElement *start_ae = rid_owner.get_or_null(p_text_start_id);
 	ERR_FAIL_NULL(start_ae);
 	ERR_FAIL_COND(start_ae->window_id != ae->window_id);
@@ -1995,7 +2084,7 @@ void AccessibilityServerAccessKit::update_set_flag(const RID &p_id, Accessibilit
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (p_value) {
@@ -2081,7 +2170,7 @@ void AccessibilityServerAccessKit::update_set_classname(const RID &p_id, const S
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (!p_classname.is_empty()) {
@@ -2095,7 +2184,7 @@ void AccessibilityServerAccessKit::update_set_placeholder(const RID &p_id, const
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->placeholder = p_placeholder;
@@ -2110,7 +2199,7 @@ void AccessibilityServerAccessKit::update_set_language(const RID &p_id, const St
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_node_set_language(ae->node, p_language.utf8().ptr());
@@ -2120,7 +2209,7 @@ void AccessibilityServerAccessKit::update_set_text_orientation(const RID &p_id, 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (p_vertical) {
@@ -2134,7 +2223,7 @@ void AccessibilityServerAccessKit::update_set_list_orientation(const RID &p_id, 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (p_vertical) {
@@ -2148,7 +2237,7 @@ void AccessibilityServerAccessKit::update_set_shortcut(const RID &p_id, const St
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (!p_shortcut.is_empty()) {
@@ -2162,7 +2251,7 @@ void AccessibilityServerAccessKit::update_set_url(const RID &p_id, const String 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (!p_url.is_empty()) {
@@ -2176,7 +2265,7 @@ void AccessibilityServerAccessKit::update_set_role_description(const RID &p_id, 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	if (!p_description.is_empty()) {
@@ -2190,7 +2279,7 @@ void AccessibilityServerAccessKit::update_set_state_description(const RID &p_id,
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->state_description = p_description;
@@ -2205,7 +2294,7 @@ void AccessibilityServerAccessKit::update_set_color_value(const RID &p_id, const
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	ae->value = p_color;
@@ -2223,7 +2312,7 @@ void AccessibilityServerAccessKit::update_set_background_color(const RID &p_id, 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_color color;
@@ -2239,7 +2328,7 @@ void AccessibilityServerAccessKit::update_set_foreground_color(const RID &p_id, 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	ERR_FAIL_NULL(ae);
+	if (!ae) { return; }
 	_ensure_node(p_id, ae);
 
 	accesskit_color color;

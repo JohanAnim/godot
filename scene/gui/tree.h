@@ -837,6 +837,7 @@ private:
 	void _check_item_accessibility(TreeItem *p_item, PackedStringArray &r_warnings, int &r_row) const;
 
 	void _accessibility_clean_info(TreeItem *p_item);
+	void _accessibility_ensure_element(TreeItem *p_item);
 	RID _accessibility_get_item_parent_element(TreeItem *p_item) const;
 	void _accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_row, int p_level);
 

@@ -3935,27 +3935,42 @@ void Tree::gui_input(const Ref<InputEvent> &p_event) {
 			_go_up();
 		}
 	} else if (p_event->is_action("ui_up") && p_event->is_pressed() && !is_command) {
-		if (!cursor_can_exit_tree) {
-			accept_event();
-		}
 		// Shift Up Selection.
 		if (k.is_valid() && k->is_shift_pressed() && selected_item && select_mode == SELECT_MULTI) {
 			TreeItem *new_item = selected_item->get_prev_visible(false);
 			_shift_select_range(new_item);
+			if (new_item || !cursor_can_exit_tree) {
+				accept_event();
+			}
 		} else {
+			TreeItem *prev_sel = selected_item;
 			_go_up();
+			if (selected_item != prev_sel) {
+				accept_event(); // Internal navigation succeeded.
+			} else if (root && (!cursor_can_exit_tree || (get_tree() && get_tree()->is_accessibility_enabled()))) {
+				accept_event(); // Boundary + no-exit → consume to stay inside.
+			}
+			// else: at boundary with cursor_can_exit_tree → let Viewport handle with
+			// find_prev_valid_focus() (accessibility) or spatial (non-accessibility).
 		}
 
 	} else if (p_event->is_action("ui_down") && p_event->is_pressed() && !is_command) {
-		if (!cursor_can_exit_tree) {
-			accept_event();
-		}
 		// Shift Down Selection.
 		if (k.is_valid() && k->is_shift_pressed() && selected_item && select_mode == SELECT_MULTI) {
 			TreeItem *new_item = selected_item->get_next_visible(false);
 			_shift_select_range(new_item);
+			if (new_item || !cursor_can_exit_tree) {
+				accept_event();
+			}
 		} else {
+			TreeItem *prev_sel = selected_item;
 			_go_down();
+			if (selected_item != prev_sel) {
+				accept_event(); // Internal navigation succeeded.
+			} else if (root && (!cursor_can_exit_tree || (get_tree() && get_tree()->is_accessibility_enabled()))) {
+				accept_event(); // Boundary + no-exit → consume to stay inside.
+			}
+			// else: at boundary with cursor_can_exit_tree → let Viewport handle.
 		}
 	} else if (p_event->is_action("ui_menu") && p_event->is_pressed()) {
 		if (allow_rmb_select && selected_item) {
@@ -4972,16 +4987,24 @@ void Tree::_accessibility_action_button_press(const Variant &p_data, TreeItem *p
 
 RID Tree::get_focused_accessibility_element() const {
 	if (selected_item) {
+		if (selected_item->accessibility_row_element.is_null() || selected_item->accessibility_row_dirty) {
+			// Force immediate synchronous accessibility update to populate roles, levels, and indexes.
+			const_cast<Tree *>(this)->_notification(NOTIFICATION_ACCESSIBILITY_UPDATE);
+		}
+		RID focused_rid;
 		if (selected_col >= 0 && selected_button >= 0) {
 			if (selected_col < selected_item->cells.size() && selected_button < selected_item->cells[selected_col].buttons.size()) {
-				return selected_item->cells[selected_col].buttons[selected_button].accessibility_button_element;
+				focused_rid = selected_item->cells[selected_col].buttons[selected_button].accessibility_button_element;
 			}
 		} else if (selected_col >= 0 && get_columns() > 1) {
 			if (selected_col < selected_item->cells.size() && selected_item->cells[selected_col].accessibility_cell_element.is_valid()) {
-				return selected_item->cells[selected_col].accessibility_cell_element;
+				focused_rid = selected_item->cells[selected_col].accessibility_cell_element;
 			}
 		}
-		return selected_item->accessibility_row_element;
+		if (focused_rid.is_null()) {
+			focused_rid = selected_item->accessibility_row_element;
+		}
+		return focused_rid;
 	} else {
 		return get_accessibility_element();
 	}
@@ -5017,6 +5040,36 @@ void Tree::_accessibility_clean_info(TreeItem *p_item) {
 	}
 }
 
+void Tree::_accessibility_ensure_element(TreeItem *p_item) {
+	if (!p_item || (p_item == root && hide_root)) {
+		return;
+	}
+	if (p_item->accessibility_row_element.is_valid() && AccessibilityServer::get_singleton()->has_element(p_item->accessibility_row_element)) {
+		return;
+	}
+
+	// Reset obsolete/unregistered RID to ensure clean recreation.
+	p_item->accessibility_row_element = RID();
+
+	TreeItem *parent = p_item->get_parent();
+	RID parent_ae;
+	if (parent && !(parent == root && hide_root)) {
+		_accessibility_ensure_element(parent);
+		parent_ae = parent->accessibility_row_element;
+	} else {
+		parent_ae = get_accessibility_element();
+	}
+
+	bool use_grid_roles = accessibility_as_grid;
+	AccessibilityServerEnums::AccessibilityRole row_role = use_grid_roles ? AccessibilityServerEnums::AccessibilityRole::ROLE_ROW : AccessibilityServerEnums::AccessibilityRole::ROLE_TREE_ITEM;
+	if (get_columns() == 1 && p_item->cells.size() > 0 && p_item->cells[0].mode == TreeItem::CELL_MODE_CHECK) {
+		row_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BOX;
+	}
+
+	p_item->accessibility_row_element = AccessibilityServer::get_singleton()->create_sub_element(parent_ae, row_role);
+	p_item->accessibility_row_dirty = true;
+}
+
 RID Tree::_accessibility_get_item_parent_element(TreeItem *p_item) const {
 	if (p_item == root) {
 		return get_accessibility_element();
@@ -5025,52 +5078,36 @@ RID Tree::_accessibility_get_item_parent_element(TreeItem *p_item) const {
 	if (parent == root && hide_root) {
 		return get_accessibility_element();
 	}
-	if (parent && parent->accessibility_row_element.is_valid()) {
+	if (parent) {
+		const_cast<Tree *>(this)->_accessibility_ensure_element(parent);
 		return parent->accessibility_row_element;
 	}
 	return get_accessibility_element();
 }
 
 void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_row, int p_level) {
-	int item_level = 1;
-	{
-		TreeItem *ancestor = p_item->get_parent();
-		while (ancestor) {
-			if (ancestor == root && hide_root) {
-				break;
-			}
-			if (ancestor->is_visible_in_tree()) {
-				item_level++;
-			}
-			ancestor = ancestor->get_parent();
-		}
-	}
-
 	const bool row_is_exposed = (p_item != root || !hide_root) && p_item->is_visible_in_tree();
 	const bool has_children = p_item->get_child_count() > 0;
 	const bool has_visible_children = p_item->get_visible_child_count() > 0;
 
-	int sibling_index = 1;
+	int sibling_index = 0;
 	int sibling_count = 1;
 	if (row_is_exposed) {
 		TreeItem *parent = p_item->get_parent();
 		if (parent) {
-			// Walk the parent's visible children to compute 1-based index/total
-			// for this row. Hidden/collapsed-out children are skipped so the
-			// "1 of N" reported to the screen reader matches what the user sees.
-			int found_index = 0;
+			int found_index = -1;
 			int found_count = 0;
 			for (TreeItem *sibling = parent->first_child; sibling; sibling = sibling->next) {
 				const bool sibling_is_exposed = (sibling != root || !hide_root) && sibling->is_visible_in_tree();
 				if (!sibling_is_exposed) {
 					continue;
 				}
-				found_count++;
 				if (sibling == p_item) {
 					found_index = found_count;
 				}
+				found_count++;
 			}
-			if (found_count > 0 && found_index > 0) {
+			if (found_count > 0 && found_index >= 0) {
 				sibling_index = found_index;
 				sibling_count = found_count;
 			}
@@ -5079,29 +5116,21 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 
 	// Row.
 	if (row_is_exposed) {
+		_accessibility_ensure_element(p_item);
 		RID parent_ae = _accessibility_get_item_parent_element(p_item);
-		bool is_table = (get_columns() > 1) || are_column_titles_visible();
-		bool use_grid_roles = accessibility_as_grid || is_table;
+		bool use_grid_roles = accessibility_as_grid;
 		AccessibilityServerEnums::AccessibilityRole row_role = use_grid_roles ? AccessibilityServerEnums::AccessibilityRole::ROLE_ROW : AccessibilityServerEnums::AccessibilityRole::ROLE_TREE_ITEM;
-		// For 1-column trees where the cell is a checkbox, use ROLE_CHECK_BOX
-		// so screen readers announce checked/unchecked and offer Space/Enter to toggle.
-		if (!use_grid_roles && !p_item->cells.is_empty() && p_item->cells[0].mode == TreeItem::CELL_MODE_CHECK) {
+		if (get_columns() == 1 && p_item->cells.size() > 0 && p_item->cells[0].mode == TreeItem::CELL_MODE_CHECK) {
 			row_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BOX;
 		}
-		if (p_item->accessibility_row_element.is_null()) {
-			p_item->accessibility_row_element = AccessibilityServer::get_singleton()->create_sub_element(parent_ae, row_role);
-			p_item->accessibility_row_dirty = true;
-		} else {
-			AccessibilityServer::get_singleton()->update_set_role(p_item->accessibility_row_element, row_role);
-			AccessibilityServer::get_singleton()->element_set_parent(p_item->accessibility_row_element, parent_ae);
-		}
 
-		if (!use_grid_roles) {
-			AccessibilityServer::get_singleton()->update_set_list_item_level(p_item->accessibility_row_element, item_level);
-		}
+		AccessibilityServer::get_singleton()->update_set_role(p_item->accessibility_row_element, row_role);
+		AccessibilityServer::get_singleton()->element_set_parent(p_item->accessibility_row_element, parent_ae);
+
+		AccessibilityServer::get_singleton()->update_set_list_item_level(p_item->accessibility_row_element, p_level);
 		AccessibilityServer::get_singleton()->update_set_list_item_count(p_item->accessibility_row_element, sibling_count);
 		AccessibilityServer::get_singleton()->update_set_list_item_index(p_item->accessibility_row_element, sibling_index);
-		String row_state = use_grid_roles ? String() : vformat(RTR("Level %d"), item_level);
+		String row_state = use_grid_roles ? String() : vformat(RTR("Level %d"), p_level);
 		if (has_children) {
 			AccessibilityServer::get_singleton()->update_set_list_item_expanded(p_item->accessibility_row_element, !p_item->collapsed);
 			row_state += p_item->collapsed ? ", " + RTR("Collapsed") : ", " + RTR("Expanded");
@@ -5116,7 +5145,7 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 			if (!row_state.is_empty()) {
 				row_state += ", ";
 			}
-			row_state += vformat(RTR("%d of %d"), sibling_index, sibling_count);
+			row_state += vformat(RTR("%d of %d"), sibling_index + 1, sibling_count);
 		}
 		AccessibilityServer::get_singleton()->update_set_state_description(p_item->accessibility_row_element, row_state);
 		AccessibilityServer::get_singleton()->update_set_flag(p_item->accessibility_row_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_HIDDEN, !p_item->is_visible_in_tree());
@@ -5260,6 +5289,7 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 						cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CELL;
 					}
 					AccessibilityServer::get_singleton()->update_set_role(cell.accessibility_cell_element, cell_role);
+					AccessibilityServer::get_singleton()->element_set_parent(cell.accessibility_cell_element, p_item->accessibility_row_element);
 				}
 
 					float cw = get_column_width(i);
@@ -5270,10 +5300,10 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 					AccessibilityServer::get_singleton()->update_add_action(cell.accessibility_cell_element, AccessibilityServerEnums::AccessibilityAction::ACTION_COLLAPSE, callable_mp(this, &Tree::_accessibility_action_collapse).bind(p_item));
 					AccessibilityServer::get_singleton()->update_add_action(cell.accessibility_cell_element, AccessibilityServerEnums::AccessibilityAction::ACTION_EXPAND, callable_mp(this, &Tree::_accessibility_action_expand).bind(p_item));
 
-					AccessibilityServer::get_singleton()->update_set_list_item_level(cell.accessibility_cell_element, item_level);
+					AccessibilityServer::get_singleton()->update_set_list_item_level(cell.accessibility_cell_element, p_level);
 					AccessibilityServer::get_singleton()->update_set_list_item_count(cell.accessibility_cell_element, sibling_count);
 					AccessibilityServer::get_singleton()->update_set_list_item_index(cell.accessibility_cell_element, sibling_index);
-					String cell_state = vformat(RTR("Level %d"), item_level);
+					String cell_state = vformat(RTR("Level %d"), p_level);
 					if (has_children) {
 						AccessibilityServer::get_singleton()->update_set_list_item_expanded(cell.accessibility_cell_element, !p_item->collapsed);
 						cell_state += p_item->collapsed ? ", " + RTR("Collapsed") : ", " + RTR("Expanded");
@@ -5282,7 +5312,7 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 						if (!cell_state.is_empty()) {
 							cell_state += ", ";
 						}
-						cell_state += vformat(RTR("%d of %d"), sibling_index, sibling_count);
+						cell_state += vformat(RTR("%d of %d"), sibling_index + 1, sibling_count);
 					}
 					AccessibilityServer::get_singleton()->update_set_state_description(cell.accessibility_cell_element, cell_state);
 					AccessibilityServer::get_singleton()->update_set_list_item_selected(cell.accessibility_cell_element, cell.selected);
@@ -5406,15 +5436,7 @@ void Tree::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			bool is_table = (get_columns() > 1) || are_column_titles_visible();
-			AccessibilityServerEnums::AccessibilityRole tree_role;
-			if (accessibility_as_grid) {
-				tree_role = AccessibilityServerEnums::AccessibilityRole::ROLE_GRID;
-			} else if (is_table) {
-				tree_role = AccessibilityServerEnums::AccessibilityRole::ROLE_TABLE;
-			} else {
-				tree_role = AccessibilityServerEnums::AccessibilityRole::ROLE_TREE;
-			}
+			AccessibilityServerEnums::AccessibilityRole tree_role = accessibility_as_grid ? AccessibilityServerEnums::AccessibilityRole::ROLE_GRID : AccessibilityServerEnums::AccessibilityRole::ROLE_TREE;
 			AccessibilityServer::get_singleton()->update_set_role(ae, tree_role);
 			AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_HIDDEN, !is_visible_in_tree());
 			AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_MULTISELECTABLE, select_mode == SELECT_MULTI);
@@ -5465,6 +5487,8 @@ void Tree::_notification(int p_what) {
 			// of the marked-selection state.
 			if (selected_item && !selected_item->accessibility_row_element.is_null()) {
 				AccessibilityServer::get_singleton()->update_set_active_descendant(ae, selected_item->accessibility_row_element);
+			} else {
+				AccessibilityServer::get_singleton()->update_set_active_descendant(ae, RID());
 			}
 
 		} break;
@@ -6171,6 +6195,7 @@ void Tree::item_deselected(int p_column, TreeItem *p_item) {
 	queue_accessibility_update();
 	queue_redraw();
 }
+
 
 void Tree::update_min_size_for_item_change() {
 	// Only need to update when any scroll bar is disabled because that's the only time item size

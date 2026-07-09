@@ -471,6 +471,8 @@ void EditorToaster::_popup_str(const String &p_message, Severity p_severity, con
 		Label *label = memnew(Label);
 		label->set_auto_translate_mode(AUTO_TRANSLATE_MODE_DISABLED);
 		label->set_focus_mode(FOCUS_ACCESSIBILITY);
+		label->set_accessibility_role(AccessibilityServerEnums::AccessibilityRole::ROLE_ALERT);
+		label->set_accessibility_live(AccessibilityServerEnums::AccessibilityLiveMode::LIVE_POLITE);
 		hb->add_child(label);
 
 		Label *count_label = memnew(Label);

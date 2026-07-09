@@ -34,6 +34,7 @@
 #include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
 #include "core/os/os.h"
+#include "scene/main/scene_tree.h"
 #include "scene/theme/theme_db.h"
 #include "servers/display/accessibility_server.h"
 #include "servers/rendering/rendering_server.h"
@@ -971,7 +972,11 @@ void ItemList::gui_input(const Ref<InputEvent> &p_event) {
 					emit_signal(SceneStringName(item_selected), current);
 				}
 				accept_event();
+			} else if (get_tree() && get_tree()->is_accessibility_enabled()) {
+				accept_event();
 			}
+			// At first row: don't consume → let Viewport handle with find_prev_valid_focus() (accessibility)
+			// or spatial search (non-accessibility).
 		}
 
 		// Shift Down Selection.
@@ -1017,7 +1022,11 @@ void ItemList::gui_input(const Ref<InputEvent> &p_event) {
 					emit_signal(SceneStringName(item_selected), current);
 				}
 				accept_event();
+			} else if (get_tree() && get_tree()->is_accessibility_enabled()) {
+				accept_event();
 			}
+			// At last row: don't consume → let Viewport handle with find_next_valid_focus() (accessibility)
+			// or spatial search (non-accessibility).
 		} else if (p_event->is_action("ui_page_up", true)) {
 			search_string = ""; //any mousepress cancels
 
@@ -1358,6 +1367,7 @@ void ItemList::_notification(int p_what) {
 					AccessibilityServer::get_singleton()->update_add_action(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityAction::ACTION_BLUR, callable_mp(this, &ItemList::_accessibility_action_blur).bind(i));
 
 					AccessibilityServer::get_singleton()->update_set_list_item_index(item.accessibility_item_element, i);
+					AccessibilityServer::get_singleton()->update_set_list_item_count(item.accessibility_item_element, items.size());
 					AccessibilityServer::get_singleton()->update_set_list_item_selected(item.accessibility_item_element, item.selected);
 					AccessibilityServer::get_singleton()->update_set_name(item.accessibility_item_element, item.xl_text);
 					AccessibilityServer::get_singleton()->update_set_flag(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, item.disabled);

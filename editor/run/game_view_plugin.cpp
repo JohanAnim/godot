@@ -435,6 +435,8 @@ GameViewDebugger::GameViewDebugger() {
 	ED_SHORTCUT_OVERRIDE("editor/suspend_resume_embedded_project", "macos", KeyModifierMask::META | KeyModifierMask::SHIFT | Key::B);
 
 	ED_SHORTCUT("editor/next_frame_embedded_project", TTRC("Next Frame"), Key::F10);
+
+	ED_SHORTCUT("editor/mute_audio_game", TTRC("Mute/Unmute Game Audio"), KeyModifierMask::CTRL | KeyModifierMask::SHIFT | Key::M);
 }
 
 ///////
@@ -1654,6 +1656,8 @@ GameView::GameView(Ref<GameViewDebugger> p_debugger, EmbeddedProcessBase *p_embe
 	audio_hb->add_child(debug_mute_audio_button);
 	debug_mute_audio_button->set_theme_type_variation(SceneStringName(FlatButton));
 	debug_mute_audio_button->connect(SceneStringName(pressed), callable_mp(this, &GameView::_debug_mute_audio_button_pressed));
+	debug_mute_audio_button->set_shortcut(ED_GET_SHORTCUT("editor/mute_audio_game"));
+	debug_mute_audio_button->set_accessibility_name(TTRC("Mute Game Audio"));
 	debug_mute_audio_button->set_tooltip_text(debug_mute_audio ? TTRC("Unmute game audio.") : TTRC("Mute game audio."));
 
 	embedding_hb = memnew(HBoxContainer);

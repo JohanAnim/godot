@@ -96,7 +96,9 @@ void OptionButton::_notification(int p_what) {
 
 			// ComboBox properties.
 			AccessibilityServer::get_singleton()->update_set_list_item_count(ae, get_item_count());
-			AccessibilityServer::get_singleton()->update_set_list_item_index(ae, current);
+			if (current >= 0) {
+				AccessibilityServer::get_singleton()->update_set_list_item_index(ae, current);
+			}
 
 			// Set the selected item text as the value (translated).
 			if (current >= 0 && current < get_item_count()) {
