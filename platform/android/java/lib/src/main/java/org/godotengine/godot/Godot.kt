@@ -527,8 +527,8 @@ class Godot private constructor(val context: Context) {
 			val editText = GodotEditText(context)
 			editText.layoutParams =
 					ViewGroup.LayoutParams(
-							ViewGroup.LayoutParams.MATCH_PARENT,
-							context.resources.getDimension(R.dimen.text_edit_height).toInt()
+							0,
+							0
 					)
 			// Prevent GodotEditText from showing on splash screen on devices with Android 14 or newer.
 			editText.setBackgroundColor(Color.TRANSPARENT)

@@ -34,6 +34,12 @@
 
 #include "servers/text/text_server.h"
 
+#ifdef ANDROID_ENABLED
+#include "platform/android/thread_jandroid.h"
+#include "platform/android/os_android.h"
+#include "platform/android/java_godot_wrapper.h"
+#endif
+
 _FORCE_INLINE_ accesskit_role AccessibilityServerAccessKit::_accessibility_role(AccessibilityServerEnums::AccessibilityRole p_role) const {
 	if (role_map.has(p_role)) {
 		return role_map[p_role];
@@ -67,6 +73,9 @@ bool AccessibilityServerAccessKit::window_create(DisplayServerEnums::WindowID p_
 #ifdef LINUXBSD_ENABLED
 	wd.adapter = accesskit_unix_adapter_new(&_accessibility_initial_tree_update_callback, (void *)(size_t)p_window_id, &_accessibility_action_callback, (void *)(size_t)p_window_id, &_accessibility_deactivation_callback, (void *)(size_t)p_window_id);
 #endif
+#ifdef ANDROID_ENABLED
+	wd.adapter = accesskit_android_adapter_new();
+#endif
 	print_verbose(vformat("Accessibility: window %d adapter created.", p_window_id));
 
 	if (wd.adapter == nullptr) {
@@ -94,6 +103,9 @@ void AccessibilityServerAccessKit::window_destroy(DisplayServerEnums::WindowID p
 #endif
 #ifdef LINUXBSD_ENABLED
 	accesskit_unix_adapter_free(wd->adapter);
+#endif
+#ifdef ANDROID_ENABLED
+	accesskit_android_adapter_free(wd->adapter);
 #endif
 	free_element(wd->root_id);
 
@@ -936,6 +948,18 @@ void AccessibilityServerAccessKit::update_if_active(const Callable &p_callable) 
 #endif
 #ifdef LINUXBSD_ENABLED
 		accesskit_unix_adapter_update_if_active(window.value.adapter, _accessibility_build_tree_update, (void *)(size_t)window.key);
+#endif
+#ifdef ANDROID_ENABLED
+		accesskit_android_queued_events *events = accesskit_android_adapter_update_if_active(window.value.adapter, _accessibility_build_tree_update, (void *)(size_t)window.key);
+		if (events) {
+			JNIEnv *env = get_jni_env();
+			jobject activity = nullptr;
+			OS_Android *os_android = static_cast<OS_Android *>(OS::get_singleton());
+			if (os_android && os_android->get_godot_java()) {
+				activity = os_android->get_godot_java()->get_activity();
+			}
+			accesskit_android_queued_events_raise(events, env, activity);
+		}
 #endif
 	}
 	update_cb = Callable();

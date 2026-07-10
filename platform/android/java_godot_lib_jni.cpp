@@ -747,4 +747,79 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_onPictureInPictureMod
 		}
 	}
 }
+
+#ifdef ACCESSKIT_ENABLED
+#include "drivers/accesskit/accessibility_server_accesskit.h"
+
+static struct accesskit_android_adapter *_get_accesskit_android_adapter() {
+	AccessibilityServerAccessKit *server = Object::cast_to<AccessibilityServerAccessKit>(AccessibilityServer::get_singleton());
+	if (!server) {
+		return nullptr;
+	}
+	return server->get_android_adapter(1); // Main window ID (1)
+}
+
+JNIEXPORT jobject JNICALL Java_org_godotengine_godot_GodotLib_accesskitCreateAccessibilityNodeInfo(JNIEnv *env, jclass clazz, jint p_virtual_view_id, jobject p_host) {
+	struct accesskit_android_adapter *adapter = _get_accesskit_android_adapter();
+	if (adapter) {
+		return accesskit_android_adapter_create_accessibility_node_info(
+				adapter,
+				&AccessibilityServerAccessKit::_accessibility_initial_tree_update_callback,
+				(void *)(size_t)1,
+				env,
+				p_host,
+				p_virtual_view_id);
+	}
+	return nullptr;
+}
+
+JNIEXPORT jobject JNICALL Java_org_godotengine_godot_GodotLib_accesskitFindFocus(JNIEnv *env, jclass clazz, jint p_focus_type, jobject p_host) {
+	struct accesskit_android_adapter *adapter = _get_accesskit_android_adapter();
+	if (adapter) {
+		return accesskit_android_adapter_find_focus(
+				adapter,
+				&AccessibilityServerAccessKit::_accessibility_initial_tree_update_callback,
+				(void *)(size_t)1,
+				env,
+				p_host,
+				p_focus_type);
+	}
+	return nullptr;
+}
+
+JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_accesskitPerformAction(JNIEnv *env, jclass clazz, jint p_virtual_view_id, jint p_action, jobject p_arguments, jobject p_host) {
+	struct accesskit_android_adapter *adapter = _get_accesskit_android_adapter();
+	if (adapter) {
+		struct accesskit_android_platform_action *action = accesskit_android_platform_action_from_java(env, p_action, p_arguments);
+		if (action) {
+			struct accesskit_android_queued_events *events = accesskit_android_adapter_perform_action(
+					adapter,
+					&AccessibilityServerAccessKit::_accessibility_action_callback,
+					(void *)(size_t)1,
+					p_virtual_view_id,
+					action);
+			accesskit_android_platform_action_free(action);
+			if (events) {
+				accesskit_android_queued_events_raise(events, env, p_host);
+			}
+		}
+	}
+}
+
+JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_accesskitOnHoverEvent(JNIEnv *env, jclass clazz, jint p_action, jfloat p_x, jfloat p_y, jobject p_host) {
+	struct accesskit_android_adapter *adapter = _get_accesskit_android_adapter();
+	if (adapter) {
+		struct accesskit_android_queued_events *events = accesskit_android_adapter_on_hover_event(
+				adapter,
+				&AccessibilityServerAccessKit::_accessibility_initial_tree_update_callback,
+				(void *)(size_t)1,
+				p_action,
+				p_x,
+				p_y);
+		if (events) {
+			accesskit_android_queued_events_raise(events, env, p_host);
+		}
+	}
+}
+#endif
 }

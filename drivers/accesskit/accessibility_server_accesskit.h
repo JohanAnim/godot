@@ -134,6 +134,9 @@ class AccessibilityServerAccessKit : public AccessibilityServer {
 #ifdef LINUXBSD_ENABLED
 		accesskit_unix_adapter *adapter = nullptr;
 #endif
+#ifdef ANDROID_ENABLED
+		struct accesskit_android_adapter *adapter = nullptr;
+#endif
 
 		RID root_id;
 		bool initial_update_completed = false;
@@ -261,6 +264,18 @@ public:
 	void update_set_background_color(const RID &p_id, const Color &p_color) override;
 	void update_set_foreground_color(const RID &p_id, const Color &p_color) override;
 	static void register_create_func();
+
+#ifdef ANDROID_ENABLED
+#include <jni.h>
+	struct accesskit_android_adapter *get_android_adapter(DisplayServerEnums::WindowID p_window_id) {
+		WindowData *wd = windows.getptr(p_window_id);
+		return wd ? wd->adapter : nullptr;
+	}
+	friend jobject Java_org_godotengine_godot_GodotLib_accesskitCreateAccessibilityNodeInfo(JNIEnv *env, jclass clazz, jint p_virtual_view_id, jobject p_host);
+	friend jobject Java_org_godotengine_godot_GodotLib_accesskitFindFocus(JNIEnv *env, jclass clazz, jint p_focus_type, jobject p_host);
+	friend void Java_org_godotengine_godot_GodotLib_accesskitPerformAction(JNIEnv *env, jclass clazz, jint p_virtual_view_id, jint p_action, jobject p_arguments, jobject p_host);
+	friend void Java_org_godotengine_godot_GodotLib_accesskitOnHoverEvent(JNIEnv *env, jclass clazz, jint p_action, jfloat p_x, jfloat p_y, jobject p_host);
+#endif
 
 	AccessibilityServerAccessKit();
 	~AccessibilityServerAccessKit();
