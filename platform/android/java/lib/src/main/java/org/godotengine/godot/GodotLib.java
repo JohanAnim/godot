@@ -323,4 +323,10 @@ public class GodotLib {
 	static native boolean hasFeature(String feature);
 
 	static native void onPictureInPictureModeChanged(boolean isInPictureInPictureMode);
+
+	// AccessKit native functions
+	public static native Object accesskitCreateAccessibilityNodeInfo(int virtualViewId, Object host);
+	public static native Object accesskitFindFocus(int focusType, Object host);
+	public static native void accesskitPerformAction(int virtualViewId, int action, Object arguments, Object host);
+	public static native void accesskitOnHoverEvent(int action, float x, float y, Object host);
 }

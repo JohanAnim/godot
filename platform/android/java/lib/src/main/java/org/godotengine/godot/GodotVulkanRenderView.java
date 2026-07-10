@@ -45,6 +45,11 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.PointerIcon;
 import android.view.SurfaceView;
+import android.view.accessibility.AccessibilityNodeProvider;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityManager;
+import android.content.Context;
+import android.os.Bundle;
 
 import androidx.annotation.Keep;
 
@@ -222,5 +227,44 @@ class GodotVulkanRenderView extends VkSurfaceView implements GodotRenderView {
 	@Override
 	public PointerIcon onResolvePointerIcon(MotionEvent me, int pointerIndex) {
 		return getPointerIcon();
+	}
+
+	private AccessibilityNodeProvider accessibilityNodeProvider = null;
+
+	@Override
+	public AccessibilityNodeProvider getAccessibilityNodeProvider() {
+		if (accessibilityNodeProvider == null) {
+			accessibilityNodeProvider = new AccessibilityNodeProvider() {
+				@Override
+				public AccessibilityNodeInfo createAccessibilityNodeInfo(int virtualViewId) {
+					return (AccessibilityNodeInfo) GodotLib.accesskitCreateAccessibilityNodeInfo(virtualViewId, getView());
+				}
+
+				@Override
+				public AccessibilityNodeInfo findFocus(int focusType) {
+					return (AccessibilityNodeInfo) GodotLib.accesskitFindFocus(focusType, getView());
+				}
+
+				@Override
+				public boolean performAction(int virtualViewId, int action, Bundle arguments) {
+					GodotLib.accesskitPerformAction(virtualViewId, action, arguments, getView());
+					return true;
+				}
+			};
+		}
+		return accessibilityNodeProvider;
+	}
+
+	@Override
+	public boolean onHoverEvent(MotionEvent event) {
+		AccessibilityManager accessibilityManager = (AccessibilityManager) getContext().getSystemService(Context.ACCESSIBILITY_SERVICE);
+		if (accessibilityManager != null && accessibilityManager.isTouchExplorationEnabled()) {
+			int action = event.getAction();
+			float x = event.getX();
+			float y = event.getY();
+			GodotLib.accesskitOnHoverEvent(action, x, y, getView());
+			return true;
+		}
+		return super.onHoverEvent(event);
 	}
 }
