@@ -121,7 +121,7 @@ def generateBuildTasks(String flavor = "template", String edition = "standard", 
     boolean isTemplate = flavor == "template"
     String libsDir = isTemplate ? "lib/libs/" : "lib/libs/tools/"
     for (String target : supportedFlavorsBuildTypes[flavor]) {
-        File targetLibs = new File(libsDir + target)
+        File targetLibs = new File(projectDir, libsDir + target)
 
         String targetSuffix = target
 
@@ -329,3 +329,6 @@ task cleanGodotTemplates(type: Delete) {
     delete("$binDir/android-template-debug-native-symbols.zip")
     delete("$binDir/android-template-release-native-symbols.zip")
 }
+
+
+

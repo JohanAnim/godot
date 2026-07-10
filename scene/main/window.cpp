@@ -1174,6 +1174,9 @@ void Window::_make_transient() {
 }
 
 void Window::_set_transient_exclusive_child(bool p_clear_invalid) {
+	if (!transient_parent) {
+		return;
+	}
 	if (exclusive && visible && is_inside_tree()) {
 		if (!is_in_edited_scene_root()) {
 			// Transient parent has another exclusive child.

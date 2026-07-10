@@ -102,6 +102,7 @@ bool DisplayServerAndroid::has_feature(DisplayServerEnums::Feature p_feature) co
 		case DisplayServerEnums::FEATURE_TOUCHSCREEN:
 		case DisplayServerEnums::FEATURE_VIRTUAL_KEYBOARD:
 		case DisplayServerEnums::FEATURE_TEXT_TO_SPEECH:
+		case DisplayServerEnums::FEATURE_ACCESSIBILITY_SCREEN_READER:
 			return true;
 		default:
 			return false;
@@ -152,6 +153,13 @@ bool DisplayServerAndroid::is_dark_mode() const {
 	ERR_FAIL_NULL_V(godot_java, false);
 
 	return godot_java->is_dark_mode();
+}
+
+int DisplayServerAndroid::accessibility_screen_reader_active() const {
+	GodotJavaWrapper *godot_java = OS_Android::get_singleton()->get_godot_java();
+	ERR_FAIL_NULL_V(godot_java, -1);
+
+	return godot_java->is_screen_reader_active() ? 1 : 0;
 }
 
 void DisplayServerAndroid::set_system_theme_change_callback(const Callable &p_callable) {

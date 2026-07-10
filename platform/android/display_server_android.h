@@ -120,6 +120,7 @@ public:
 
 	virtual bool is_dark_mode_supported() const override;
 	virtual bool is_dark_mode() const override;
+	virtual int accessibility_screen_reader_active() const override;
 	virtual void set_system_theme_change_callback(const Callable &p_callable) override;
 	void emit_system_theme_changed();
 

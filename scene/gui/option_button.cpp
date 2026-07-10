@@ -554,10 +554,18 @@ String OptionButton::_get_translated_text(const String &p_text) const {
 }
 
 String OptionButton::_get_accessibility_name() const {
+#ifdef ANDROID_ENABLED
+	String name = Control::_get_accessibility_name();
+	if (current >= 0 && current < get_item_count()) {
+		name += " " + popup->get_item_xl_text(current);
+	}
+	return name;
+#else
 	// For comboboxes, only return the label (not "label: value") because the value
 	// is separately exposed via update_set_value(). Including it in the name causes
 	// screen readers to announce the value twice.
 	return Control::_get_accessibility_name();
+#endif
 }
 
 void OptionButton::select(int p_idx) {

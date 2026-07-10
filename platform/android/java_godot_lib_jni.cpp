@@ -62,9 +62,14 @@
 static struct accesskit_android_adapter *_get_accesskit_android_adapter() {
 	AccessibilityServerAccessKit *server = Object::cast_to<AccessibilityServerAccessKit>(AccessibilityServer::get_singleton());
 	if (!server) {
+		print_line("AccessKit JNI: AccessibilityServer is null!");
 		return nullptr;
 	}
-	return server->get_android_adapter(1); // Main window ID (1)
+	struct accesskit_android_adapter *adapter = server->get_android_adapter(DisplayServerEnums::MAIN_WINDOW_ID);
+	if (!adapter) {
+		print_line("AccessKit JNI: get_android_adapter returned null for MAIN_WINDOW_ID!");
+	}
+	return adapter;
 }
 #endif
 
@@ -763,15 +768,18 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_onPictureInPictureMod
 
 #ifdef ACCESSKIT_ENABLED
 JNIEXPORT jobject JNICALL Java_org_godotengine_godot_GodotLib_accesskitCreateAccessibilityNodeInfo(JNIEnv *env, jclass clazz, jint p_virtual_view_id, jobject p_host) {
+	print_line(vformat("AccessKit JNI: createAccessibilityNodeInfo for virtualViewId %d", p_virtual_view_id));
 	struct accesskit_android_adapter *adapter = _get_accesskit_android_adapter();
 	if (adapter) {
-		return accesskit_android_adapter_create_accessibility_node_info(
+		jobject result = accesskit_android_adapter_create_accessibility_node_info(
 				adapter,
 				&AccessibilityServerAccessKit::_accessibility_initial_tree_update_callback,
-				(void *)(size_t)1,
+				(void *)(size_t)DisplayServerEnums::MAIN_WINDOW_ID,
 				env,
 				p_host,
 				p_virtual_view_id);
+		print_line(vformat("AccessKit JNI: create_accessibility_node_info returned %s", result ? "valid jobject" : "null"));
+		return result;
 	}
 	return nullptr;
 }
@@ -782,7 +790,7 @@ JNIEXPORT jobject JNICALL Java_org_godotengine_godot_GodotLib_accesskitFindFocus
 		return accesskit_android_adapter_find_focus(
 				adapter,
 				&AccessibilityServerAccessKit::_accessibility_initial_tree_update_callback,
-				(void *)(size_t)1,
+				(void *)(size_t)DisplayServerEnums::MAIN_WINDOW_ID,
 				env,
 				p_host,
 				p_focus_type);
@@ -798,7 +806,7 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_accesskitPerformActio
 			struct accesskit_android_queued_events *events = accesskit_android_adapter_perform_action(
 					adapter,
 					&AccessibilityServerAccessKit::_accessibility_action_callback,
-					(void *)(size_t)1,
+					(void *)(size_t)DisplayServerEnums::MAIN_WINDOW_ID,
 					p_virtual_view_id,
 					action);
 			accesskit_android_platform_action_free(action);
@@ -810,12 +818,13 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_accesskitPerformActio
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_accesskitOnHoverEvent(JNIEnv *env, jclass clazz, jint p_action, jfloat p_x, jfloat p_y, jobject p_host) {
+	print_line(vformat("AccessKit JNI: onHoverEvent action %d at (%f, %f)", p_action, p_x, p_y));
 	struct accesskit_android_adapter *adapter = _get_accesskit_android_adapter();
 	if (adapter) {
 		struct accesskit_android_queued_events *events = accesskit_android_adapter_on_hover_event(
 				adapter,
 				&AccessibilityServerAccessKit::_accessibility_initial_tree_update_callback,
-				(void *)(size_t)1,
+				(void *)(size_t)DisplayServerEnums::MAIN_WINDOW_ID,
 				p_action,
 				p_x,
 				p_y);

@@ -127,6 +127,11 @@ internal class GodotNativeBridge(private val godot: Godot) {
 	 */
 	private fun isDarkMode() = godot.darkMode
 
+	private fun isScreenReaderActive(): Boolean {
+		val am = godot.context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager
+		return am?.isEnabled == true && am.isTouchExplorationEnabled
+	}
+
 	private fun showFilePicker(currentDirectory: String, filename: String, fileMode: Int, filters: Array<String>) {
 		FilePicker.showFilePicker(godot.context, godot.getActivity(), currentDirectory, filename, fileMode, filters)
 	}

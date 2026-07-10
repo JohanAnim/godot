@@ -53,6 +53,7 @@ private:
 	jmethodID _alert = nullptr;
 	jmethodID _is_dark_mode_supported = nullptr;
 	jmethodID _is_dark_mode = nullptr;
+	jmethodID _is_screen_reader_active = nullptr;
 	jmethodID _get_accent_color = nullptr;
 	jmethodID _get_base_color = nullptr;
 	jmethodID _get_clipboard = nullptr;
@@ -114,6 +115,7 @@ public:
 	void alert(const String &p_message, const String &p_title);
 	bool is_dark_mode_supported();
 	bool is_dark_mode();
+	bool is_screen_reader_active();
 	Color get_accent_color();
 	Color get_base_color();
 	bool has_get_clipboard();

@@ -58,6 +58,7 @@ GodotJavaWrapper::GodotJavaWrapper(JNIEnv *p_env, jobject p_godot_native_bridge)
 	_alert = p_env->GetMethodID(godot_native_bridge_class, "alert", "(Ljava/lang/String;Ljava/lang/String;)V");
 	_is_dark_mode_supported = p_env->GetMethodID(godot_native_bridge_class, "isDarkModeSupported", "()Z");
 	_is_dark_mode = p_env->GetMethodID(godot_native_bridge_class, "isDarkMode", "()Z");
+	_is_screen_reader_active = p_env->GetMethodID(godot_native_bridge_class, "isScreenReaderActive", "()Z");
 	_get_accent_color = p_env->GetMethodID(godot_native_bridge_class, "getAccentColor", "()I");
 	_get_base_color = p_env->GetMethodID(godot_native_bridge_class, "getBaseColor", "()I");
 	_get_clipboard = p_env->GetMethodID(godot_native_bridge_class, "getClipboard", "()Ljava/lang/String;");
@@ -226,6 +227,16 @@ bool GodotJavaWrapper::is_dark_mode() {
 		JNIEnv *env = get_jni_env();
 		ERR_FAIL_NULL_V(env, false);
 		return env->CallBooleanMethod(godot_native_bridge, _is_dark_mode);
+	} else {
+		return false;
+	}
+}
+
+bool GodotJavaWrapper::is_screen_reader_active() {
+	if (_is_screen_reader_active) {
+		JNIEnv *env = get_jni_env();
+		ERR_FAIL_NULL_V(env, false);
+		return env->CallBooleanMethod(godot_native_bridge, _is_screen_reader_active);
 	} else {
 		return false;
 	}
