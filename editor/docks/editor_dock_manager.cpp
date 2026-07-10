@@ -742,6 +742,7 @@ void EditorDockManager::focus_dock(EditorDock *p_dock) {
 	}
 
 	_make_dock_visible(p_dock, true);
+	p_dock->grab_dock_focus();
 }
 
 void EditorDockManager::add_dock(EditorDock *p_dock) {

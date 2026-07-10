@@ -3468,8 +3468,24 @@ bool SceneTreeDock::_check_node_recursive(Variant &r_variant, Node *p_node, Node
 }
 
 void SceneTreeDock::set_edited_scene(Node *p_scene) {
+	Control *focus_owner = nullptr;
+	if (get_viewport()) {
+		focus_owner = get_viewport()->gui_get_focus_owner();
+	}
+	bool tree_had_focus = false;
+	if (focus_owner) {
+		Tree *tree = scene_tree ? scene_tree->get_scene_tree() : nullptr;
+		if (tree && (tree == focus_owner || tree->is_ancestor_of(focus_owner))) {
+			tree_had_focus = true;
+		}
+	}
+
 	edited_scene = p_scene;
 	_update_create_root_dialog_visibility();
+
+	if (p_scene == nullptr && tree_had_focus && filter && filter->is_visible_in_tree()) {
+		filter->grab_focus();
+	}
 }
 
 static bool _is_same_selection(const Vector<Node *> &p_first, const HashMap<ObjectID, Object *> &p_second) {
@@ -4338,15 +4354,57 @@ void SceneTreeDock::_focus_node() {
 }
 
 void SceneTreeDock::focus_scene_tree() {
-	Node *node = scene_tree->get_selected();
-	if (!node) {
-		// No node selected, select the root.
-		node = EditorNode::get_singleton()->get_edited_scene();
-		if (node) {
-			scene_tree->set_selected(node, true);
+	if (edited_scene != nullptr) {
+		Tree *tree = scene_tree->get_scene_tree();
+		if (tree && tree->is_visible_in_tree()) {
+			Node *node = scene_tree->get_selected();
+			if (!node) {
+				// No node selected, select the root.
+				node = EditorNode::get_singleton()->get_edited_scene();
+				if (node) {
+					scene_tree->set_selected(node, true);
+				}
+			}
+			tree->grab_focus(true);
+			return;
 		}
 	}
-	scene_tree->get_scene_tree()->grab_focus(true);
+
+	if (filter && filter->is_visible_in_tree()) {
+		filter->grab_focus();
+		return;
+	}
+
+	if (create_root_dialog && create_root_dialog->is_visible_in_tree()) {
+		if (button_2d && button_2d->is_visible_in_tree()) {
+			button_2d->grab_focus();
+			return;
+		}
+	}
+}
+
+void SceneTreeDock::grab_dock_focus() {
+	if (edited_scene != nullptr) {
+		Tree *tree = scene_tree->get_scene_tree();
+		if (tree && tree->is_visible_in_tree()) {
+			tree->grab_focus();
+			return;
+		}
+	}
+
+	if (filter && filter->is_visible_in_tree()) {
+		filter->grab_focus();
+		return;
+	}
+
+	if (create_root_dialog && create_root_dialog->is_visible_in_tree()) {
+		if (button_2d && button_2d->is_visible_in_tree()) {
+			button_2d->grab_focus();
+			return;
+		}
+	}
+
+	EditorDock::grab_dock_focus();
 }
 
 void SceneTreeDock::attach_script_to_selected(bool p_extend) {
