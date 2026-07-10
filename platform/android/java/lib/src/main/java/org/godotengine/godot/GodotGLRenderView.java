@@ -93,6 +93,7 @@ class GodotGLRenderView extends GLSurfaceView implements GodotRenderView {
 		this.inputHandler = inputHandler;
 		this.godotRenderer = new GodotRenderer();
 		setPointerIcon(PointerIcon.getSystemIcon(getContext(), PointerIcon.TYPE_DEFAULT));
+		setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_YES);
 		init(xrMode, shouldBeTranslucent, useDebugOpengl);
 	}
 

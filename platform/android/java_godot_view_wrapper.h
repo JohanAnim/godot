@@ -61,5 +61,7 @@ public:
 	void configure_pointer_icon(int pointer_type, const String &image_path, const Vector2 &p_hotspot);
 	void set_pointer_icon(int pointer_type);
 
+	jobject get_member_view() const { return _godot_view; }
+
 	~GodotJavaViewWrapper();
 };

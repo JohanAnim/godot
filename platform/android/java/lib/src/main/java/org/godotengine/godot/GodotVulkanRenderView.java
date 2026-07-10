@@ -68,6 +68,7 @@ class GodotVulkanRenderView extends VkSurfaceView implements GodotRenderView {
 		mInputHandler = inputHandler;
 		mRenderer = new VkRenderer();
 		setPointerIcon(PointerIcon.getSystemIcon(getContext(), PointerIcon.TYPE_DEFAULT));
+		setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_YES);
 		setFocusableInTouchMode(true);
 		setClickable(false);
 

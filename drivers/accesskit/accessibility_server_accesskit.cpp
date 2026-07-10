@@ -953,12 +953,12 @@ void AccessibilityServerAccessKit::update_if_active(const Callable &p_callable) 
 		accesskit_android_queued_events *events = accesskit_android_adapter_update_if_active(window.value.adapter, _accessibility_build_tree_update, (void *)(size_t)window.key);
 		if (events) {
 			JNIEnv *env = get_jni_env();
-			jobject activity = nullptr;
+			jobject host_view = nullptr;
 			OS_Android *os_android = static_cast<OS_Android *>(OS::get_singleton());
-			if (os_android && os_android->get_godot_java()) {
-				activity = os_android->get_godot_java()->get_activity();
+			if (os_android && os_android->get_godot_java() && os_android->get_godot_java()->get_godot_view()) {
+				host_view = os_android->get_godot_java()->get_godot_view()->get_member_view();
 			}
-			accesskit_android_queued_events_raise(events, env, activity);
+			accesskit_android_queued_events_raise(events, env, host_view);
 		}
 #endif
 	}
