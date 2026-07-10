@@ -159,16 +159,17 @@ class AccessibilityServerAccessKit : public AccessibilityServer {
 	void _free_recursive(WindowData *p_wd, const RID &p_id);
 	_FORCE_INLINE_ void _ensure_node(const RID &p_id, AccessibilityElement *p_ae);
 
-	static void _accessibility_action_callback(struct accesskit_action_request *p_request, void *p_user_data);
-	static accesskit_tree_update *_accessibility_initial_tree_update_callback(void *p_user_data);
-	static void _accessibility_deactivation_callback(void *p_user_data);
-	static accesskit_tree_update *_accessibility_build_tree_update(void *p_user_data);
 
 	bool in_accessibility_update = false;
 	Callable update_cb;
 	Vector<RID> elements_to_free_after_update;
 
 public:
+	static void _accessibility_action_callback(struct accesskit_action_request *p_request, void *p_user_data);
+	static accesskit_tree_update *_accessibility_initial_tree_update_callback(void *p_user_data);
+	static void _accessibility_deactivation_callback(void *p_user_data);
+	static accesskit_tree_update *_accessibility_build_tree_update(void *p_user_data);
+
 	bool is_supported() const override { return true; }
 
 	bool window_create(DisplayServerEnums::WindowID p_window_id, void *p_handle) override;
@@ -271,10 +272,6 @@ public:
 		WindowData *wd = windows.getptr(p_window_id);
 		return wd ? wd->adapter : nullptr;
 	}
-	friend jobject Java_org_godotengine_godot_GodotLib_accesskitCreateAccessibilityNodeInfo(JNIEnv *env, jclass clazz, jint p_virtual_view_id, jobject p_host);
-	friend jobject Java_org_godotengine_godot_GodotLib_accesskitFindFocus(JNIEnv *env, jclass clazz, jint p_focus_type, jobject p_host);
-	friend void Java_org_godotengine_godot_GodotLib_accesskitPerformAction(JNIEnv *env, jclass clazz, jint p_virtual_view_id, jint p_action, jobject p_arguments, jobject p_host);
-	friend void Java_org_godotengine_godot_GodotLib_accesskitOnHoverEvent(JNIEnv *env, jclass clazz, jint p_action, jfloat p_x, jfloat p_y, jobject p_host);
 #endif
 
 	AccessibilityServerAccessKit();

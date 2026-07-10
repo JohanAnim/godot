@@ -55,6 +55,19 @@
 #include "servers/camera/camera_server.h"
 #include "servers/rendering/rendering_server.h"
 
+#ifdef ACCESSKIT_ENABLED
+#include "core/templates/rid_owner.h"
+#include "drivers/accesskit/accessibility_server_accesskit.h"
+
+static struct accesskit_android_adapter *_get_accesskit_android_adapter() {
+	AccessibilityServerAccessKit *server = Object::cast_to<AccessibilityServerAccessKit>(AccessibilityServer::get_singleton());
+	if (!server) {
+		return nullptr;
+	}
+	return server->get_android_adapter(1); // Main window ID (1)
+}
+#endif
+
 #ifndef XR_DISABLED
 #include "servers/xr/xr_server.h"
 #endif // XR_DISABLED
@@ -749,16 +762,6 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_onPictureInPictureMod
 }
 
 #ifdef ACCESSKIT_ENABLED
-#include "drivers/accesskit/accessibility_server_accesskit.h"
-
-static struct accesskit_android_adapter *_get_accesskit_android_adapter() {
-	AccessibilityServerAccessKit *server = Object::cast_to<AccessibilityServerAccessKit>(AccessibilityServer::get_singleton());
-	if (!server) {
-		return nullptr;
-	}
-	return server->get_android_adapter(1); // Main window ID (1)
-}
-
 JNIEXPORT jobject JNICALL Java_org_godotengine_godot_GodotLib_accesskitCreateAccessibilityNodeInfo(JNIEnv *env, jclass clazz, jint p_virtual_view_id, jobject p_host) {
 	struct accesskit_android_adapter *adapter = _get_accesskit_android_adapter();
 	if (adapter) {

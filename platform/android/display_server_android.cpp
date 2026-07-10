@@ -35,6 +35,10 @@
 #include "os_android.h"
 #include "tts_android.h"
 
+#ifdef ACCESSKIT_ENABLED
+#include "servers/display/accessibility_server.h"
+#endif
+
 #include "core/config/project_settings.h"
 #include "core/input/input.h"
 #include "core/input/input_event.h"
@@ -839,10 +843,22 @@ DisplayServerAndroid::DisplayServerAndroid(const String &p_rendering_driver, Dis
 
 	Input::get_singleton()->set_event_dispatch_function(_dispatch_input_events);
 
+#ifdef ACCESSKIT_ENABLED
+	if (AccessibilityServer::get_singleton()) {
+		AccessibilityServer::get_singleton()->window_create(DisplayServerEnums::MAIN_WINDOW_ID, nullptr);
+	}
+#endif
+
 	r_error = OK;
 }
 
 DisplayServerAndroid::~DisplayServerAndroid() {
+#ifdef ACCESSKIT_ENABLED
+	if (AccessibilityServer::get_singleton()) {
+		AccessibilityServer::get_singleton()->window_destroy(DisplayServerEnums::MAIN_WINDOW_ID);
+	}
+#endif
+
 	if (native_menu) {
 		memdelete(native_menu);
 		native_menu = nullptr;

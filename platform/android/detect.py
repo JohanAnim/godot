@@ -40,6 +40,11 @@ def get_opts():
             False,
         ),
         BoolVariable("swappy", "Use Swappy Frame Pacing library", False),
+        (
+            "accesskit_sdk_path",
+            "Path to the AccessKit C SDK",
+            "",
+        ),
     ]
 
 
@@ -267,3 +272,30 @@ def configure(env: "SConsEnvironment"):
     if env["opengl3"]:
         env.Append(CPPDEFINES=["GLES3_ENABLED"])
         env.Append(LIBS=["GLESv3"])
+
+    # AccessKit
+    if env["accesskit"]:
+        if "accesskit_sdk_path" not in env or env["accesskit_sdk_path"] == "":
+            deps_folder = os.getenv("LOCALAPPDATA")
+            if deps_folder:
+                deps_folder = os.path.join(deps_folder, "Godot", "build_deps")
+            else:
+                deps_folder = os.path.join("bin", "build_deps")
+            env["accesskit_sdk_path"] = os.path.join(deps_folder, "accesskit")
+
+        if os.path.exists(env["accesskit_sdk_path"]):
+            env.Prepend(CPPPATH=[env["accesskit_sdk_path"] + "/include"])
+            if env["arch"] == "arm64":
+                env.Append(LIBPATH=[env["accesskit_sdk_path"] + "/lib/android/arm64-v8a/static/"])
+            elif env["arch"] == "x86_64":
+                env.Append(LIBPATH=[env["accesskit_sdk_path"] + "/lib/android/x86_64/static/"])
+
+            env.Append(LIBS=["accesskit"])
+            env.Append(CPPDEFINES=["ACCESSKIT_ENABLED"])
+        else:
+            print_warning(
+                f"AccessKit SDK path not found at: {env['accesskit_sdk_path']}.\n"
+                "Disabling AccessKit support for Android."
+            )
+            env["accesskit"] = False
+
