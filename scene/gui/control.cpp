@@ -3310,7 +3310,9 @@ void Control::grab_focus(bool p_hide_focus) {
 	}
 
 	if (get_focus_mode_with_override() == FOCUS_NONE) {
-		WARN_PRINT("This control can't grab focus. Use set_focus_mode() and set_focus_behavior_recursive() to allow a control to get focus.");
+		if (data.focus_mode != FOCUS_NONE) {
+			WARN_PRINT("This control '" + get_name() + "' (" + get_class() + ") can't grab focus. Focus mode: " + itos(data.focus_mode) + ", focus_behavior_recursive: " + itos(data.focus_behavior_recursive) + ", parent_focus_behavior_recursive_enabled: " + (data.parent_focus_behavior_recursive_enabled ? "true" : "false"));
+		}
 		return;
 	}
 
