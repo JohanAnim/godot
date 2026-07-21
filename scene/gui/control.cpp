@@ -1781,6 +1781,9 @@ void Control::update_maximum_size() {
 	for (Node *child : iterate_children()) {
 		Control *child_control = Object::cast_to<Control>(child);
 		if (child_control && !child_control->is_set_as_top_level() && child_control->data.maximum_size_valid) {
+			if (child_control->data.parent_maximum_size_cache == parent_max) {
+				continue;
+			}
 			child_control->data.parent_maximum_size_cache = parent_max;
 			child_control->update_maximum_size();
 		}
@@ -5625,9 +5628,7 @@ Control::Control() {
 Control::~Control() {
 	memdelete(data.theme_owner);
 
-	if (data.offset_transform != nullptr) {
-		memdelete(data.offset_transform);
-	}
+	memdelete(data.offset_transform);
 
 	// Resources need to be disconnected.
 	for (KeyValue<StringName, Ref<Texture2D>> &E : data.theme_icon_override) {
