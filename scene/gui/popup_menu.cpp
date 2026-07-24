@@ -1435,6 +1435,7 @@ void PopupMenu::_notification(int p_what) {
 			ERR_FAIL_COND(ae.is_null());
 
 			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_MENU);
+			AccessibilityServer::get_singleton()->update_set_name(ae, "");
 
 			int item_count = 0;
 			for (const Item &item : items) {
@@ -1445,8 +1446,10 @@ void PopupMenu::_notification(int p_what) {
 			AccessibilityServer::get_singleton()->update_set_list_item_count(ae, item_count);
 
 			if (accessibility_scroll_element.is_null()) {
-				accessibility_scroll_element = AccessibilityServer::get_singleton()->create_sub_element(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_CONTAINER);
+				accessibility_scroll_element = AccessibilityServer::get_singleton()->create_sub_element(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_GROUP);
 			}
+			AccessibilityServer::get_singleton()->update_set_role(accessibility_scroll_element, AccessibilityServerEnums::AccessibilityRole::ROLE_GROUP);
+			AccessibilityServer::get_singleton()->update_set_name(accessibility_scroll_element, get_accessibility_name());
 
 			Transform2D scroll_xform;
 			scroll_xform.set_origin(Vector2i(0, -scroll_container->get_v_scroll_bar()->get_value()));

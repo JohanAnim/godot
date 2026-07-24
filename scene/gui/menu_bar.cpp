@@ -321,12 +321,12 @@ void MenuBar::_notification(int p_what) {
 				}
 
 				if (menu.accessibility_element.is_null()) {
-					menu.accessibility_element = AccessibilityServer::get_singleton()->create_sub_element(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_GROUP);
+					menu.accessibility_element = AccessibilityServer::get_singleton()->create_sub_element(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_MENU_ITEM);
 				} else {
 					AccessibilityServer::get_singleton()->element_set_parent(menu.accessibility_element, ae);
 				}
 
-				AccessibilityServer::get_singleton()->update_set_role(menu.accessibility_element, AccessibilityServerEnums::AccessibilityRole::ROLE_GROUP);
+				AccessibilityServer::get_singleton()->update_set_role(menu.accessibility_element, AccessibilityServerEnums::AccessibilityRole::ROLE_MENU_ITEM);
 				AccessibilityServer::get_singleton()->update_set_name(menu.accessibility_element, atr(menu.name));
 				AccessibilityServer::get_singleton()->update_set_flag(menu.accessibility_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, menu.disabled);
 				AccessibilityServer::get_singleton()->update_set_popup_type(menu.accessibility_element, AccessibilityServerEnums::AccessibilityPopupType::POPUP_MENU);
