@@ -1509,7 +1509,7 @@ void PopupMenu::_notification(int p_what) {
 					AccessibilityServer::get_singleton()->update_set_name(item.accessibility_item_element, item_name);
 					AccessibilityServer::get_singleton()->update_set_flag(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, item.disabled);
 					AccessibilityServer::get_singleton()->update_set_flag(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_HIDDEN, !item.visible);
-					AccessibilityServer::get_singleton()->update_set_tooltip(item.accessibility_item_element, item.tooltip);
+					AccessibilityServer::get_singleton()->update_set_tooltip(item.accessibility_item_element, atr(item.tooltip));
 
 					bool has_submenu = !item.submenu_name.is_empty() || item.submenu != nullptr;
 					if (has_submenu) {

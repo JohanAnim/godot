@@ -1372,7 +1372,7 @@ void ItemList::_notification(int p_what) {
 					AccessibilityServer::get_singleton()->update_set_name(item.accessibility_item_element, item.xl_text);
 					AccessibilityServer::get_singleton()->update_set_flag(item.accessibility_item_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, item.disabled);
 					if (item.tooltip_enabled) {
-						AccessibilityServer::get_singleton()->update_set_tooltip(item.accessibility_item_element, item.tooltip);
+						AccessibilityServer::get_singleton()->update_set_tooltip(item.accessibility_item_element, atr(item.tooltip));
 					}
 
 					Rect2 r = get_item_rect(i);

@@ -5254,7 +5254,7 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 					}
 
 					// AccessibilityServer::get_singleton()->update_set_flag(p_item->accessibility_row_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_READONLY, !cell.editable);
-					AccessibilityServer::get_singleton()->update_set_tooltip(p_item->accessibility_row_element, cell.tooltip);
+					AccessibilityServer::get_singleton()->update_set_tooltip(p_item->accessibility_row_element, atr(cell.tooltip));
 
 					switch (cell.mode) {
 						case TreeItem::CELL_MODE_STRING: {
@@ -5300,11 +5300,11 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 
 						AccessibilityServer::get_singleton()->update_add_action(cell.buttons[j].accessibility_button_element, AccessibilityServerEnums::AccessibilityAction::ACTION_CLICK, callable_mp(this, &Tree::_accessibility_action_button_press).bind(p_item, 0, j));
 						AccessibilityServer::get_singleton()->update_set_flag(cell.buttons[j].accessibility_button_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, cell.buttons[j].disabled);
-						AccessibilityServer::get_singleton()->update_set_tooltip(cell.buttons[j].accessibility_button_element, cell.buttons[j].tooltip);
+						AccessibilityServer::get_singleton()->update_set_tooltip(cell.buttons[j].accessibility_button_element, atr(cell.buttons[j].tooltip));
 						if (cell.buttons[j].description.is_empty()) {
-							AccessibilityServer::get_singleton()->update_set_name(cell.buttons[j].accessibility_button_element, cell.buttons[j].tooltip);
+							AccessibilityServer::get_singleton()->update_set_name(cell.buttons[j].accessibility_button_element, atr(cell.buttons[j].tooltip));
 						} else {
-							AccessibilityServer::get_singleton()->update_set_name(cell.buttons[j].accessibility_button_element, cell.buttons[j].description);
+							AccessibilityServer::get_singleton()->update_set_name(cell.buttons[j].accessibility_button_element, atr(cell.buttons[j].description));
 						}
 
 						Ref<Texture2D> b = cell.buttons[j].texture;
@@ -5376,7 +5376,7 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 					AccessibilityServer::get_singleton()->update_set_text_align(cell.accessibility_cell_element, cell.text_alignment);
 					AccessibilityServer::get_singleton()->update_set_flag(cell.accessibility_cell_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_HIDDEN, !p_item->is_visible_in_tree());
 					AccessibilityServer::get_singleton()->update_set_flag(cell.accessibility_cell_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_READONLY, !cell.editable);
-					AccessibilityServer::get_singleton()->update_set_tooltip(cell.accessibility_cell_element, cell.tooltip);
+					AccessibilityServer::get_singleton()->update_set_tooltip(cell.accessibility_cell_element, atr(cell.tooltip));
 					switch (cell.mode) {
 						case TreeItem::CELL_MODE_STRING: {
 							if (cell.editable) {
@@ -5422,11 +5422,11 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 
 						AccessibilityServer::get_singleton()->update_add_action(cell.buttons[j].accessibility_button_element, AccessibilityServerEnums::AccessibilityAction::ACTION_CLICK, callable_mp(this, &Tree::_accessibility_action_button_press).bind(p_item, i, j));
 						AccessibilityServer::get_singleton()->update_set_flag(cell.buttons[j].accessibility_button_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, cell.buttons[j].disabled);
-						AccessibilityServer::get_singleton()->update_set_tooltip(cell.buttons[j].accessibility_button_element, cell.buttons[j].tooltip);
+						AccessibilityServer::get_singleton()->update_set_tooltip(cell.buttons[j].accessibility_button_element, atr(cell.buttons[j].tooltip));
 						if (cell.buttons[j].description.is_empty()) {
-							AccessibilityServer::get_singleton()->update_set_name(cell.buttons[j].accessibility_button_element, cell.buttons[j].tooltip);
+							AccessibilityServer::get_singleton()->update_set_name(cell.buttons[j].accessibility_button_element, atr(cell.buttons[j].tooltip));
 						} else {
-							AccessibilityServer::get_singleton()->update_set_name(cell.buttons[j].accessibility_button_element, cell.buttons[j].description);
+							AccessibilityServer::get_singleton()->update_set_name(cell.buttons[j].accessibility_button_element, atr(cell.buttons[j].description));
 						}
 
 						Ref<Texture2D> b = cell.buttons[j].texture;

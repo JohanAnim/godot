@@ -2868,17 +2868,11 @@ String Control::get_accessibility_name() const {
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_COMBO_BOX:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_EDITABLE_COMBO_BOX:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_LIST_BOX:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_LIST:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BOX:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BUTTON:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_RADIO_BUTTON:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_SLIDER:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_SPIN_BUTTON:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_PROGRESS_INDICATOR:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_COLOR_PICKER:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_TREE:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_TABLE:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_SCROLL_BAR:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_SEARCH_INPUT:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_DATE_INPUT:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_DATE_TIME_INPUT:
@@ -2895,12 +2889,10 @@ String Control::get_accessibility_name() const {
 
 		if (is_form_control && is_inside_tree() && get_parent()) {
 			int idx = get_index();
-			for (int i = idx - 1; i >= MAX(0, idx - 3); i--) {
-				Node *child = get_parent()->get_child(i);
-				Label *sibling_label = Object::cast_to<Label>(child);
+			if (idx > 0) {
+				Label *sibling_label = Object::cast_to<Label>(get_parent()->get_child(idx - 1));
 				if (sibling_label && sibling_label->is_visible_in_tree()) {
 					name = tr(sibling_label->get_text());
-					break;
 				}
 			}
 		}
