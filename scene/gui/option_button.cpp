@@ -127,8 +127,25 @@ void OptionButton::_notification(int p_what) {
 			String state_desc = is_open ? atr("expanded") : atr("collapsed");
 			if (!is_disabled()) {
 				state_desc += ", " + atr("Alt+Down");
+				AccessibilityServer::get_singleton()->update_set_description(ae, atr("Alt+Down"));
 			}
 			AccessibilityServer::get_singleton()->update_set_state_description(ae, state_desc);
+
+			// Also propagate shortcut to any preceding Label so reading the Label announces Alt+Down
+			if (is_inside_tree() && get_parent()) {
+				int idx = get_index();
+				for (int i = idx - 1; i >= MAX(0, idx - 3); i--) {
+					Node *child = get_parent()->get_child(i);
+					Label *sibling_label = Object::cast_to<Label>(child);
+					if (sibling_label && sibling_label->is_visible_in_tree()) {
+						RID label_ae = sibling_label->get_accessibility_element();
+						if (label_ae.is_valid()) {
+							AccessibilityServer::get_singleton()->update_set_shortcut(label_ae, "Alt+Down");
+						}
+						break;
+					}
+				}
+			}
 
 			if (popup && popup->get_accessibility_element().is_valid()) {
 				if (is_open) {
