@@ -1023,6 +1023,10 @@ _FORCE_INLINE_ void AccessibilityServerAccessKit::_ensure_node(const RID &p_id, 
 			accesskit_node_set_state_description(p_ae->node, p_ae->state_description.utf8().ptr());
 		}
 
+		if (!p_ae->shortcut.is_empty()) {
+			accesskit_node_set_keyboard_shortcut(p_ae->node, p_ae->shortcut.utf8().ptr());
+		}
+
 		// Expose the combined description (control description + tooltip, with deduplication).
 		// For Label role, UIA_Name comes from value; for others, from name.
 		String effective_name = p_ae->name;
@@ -2182,6 +2186,7 @@ void AccessibilityServerAccessKit::update_set_shortcut(const RID &p_id, const St
 	ERR_FAIL_NULL(ae);
 	_ensure_node(p_id, ae);
 
+	ae->shortcut = p_shortcut;
 	if (!p_shortcut.is_empty()) {
 		accesskit_node_set_keyboard_shortcut(ae->node, p_shortcut.utf8().ptr());
 	} else {

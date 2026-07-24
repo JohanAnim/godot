@@ -37,6 +37,21 @@
 
 static const int NONE_SELECTED = -1;
 
+void OptionButton::gui_input(const Ref<InputEvent> &p_event) {
+	ERR_FAIL_COND(p_event.is_null());
+
+	Ref<InputEventKey> k = p_event;
+	if (k.is_valid() && k->is_pressed() && !k->is_echo() && !is_disabled()) {
+		if (k->is_alt_pressed() && k->get_keycode() == Key::DOWN) {
+			show_popup();
+			accept_event();
+			return;
+		}
+	}
+
+	Button::gui_input(p_event);
+}
+
 void OptionButton::shortcut_input(const Ref<InputEvent> &p_event) {
 	ERR_FAIL_COND(p_event.is_null());
 
@@ -93,6 +108,7 @@ void OptionButton::_notification(int p_what) {
 				AccessibilityServer::get_singleton()->update_set_role(ae, get_accessibility_default_role());
 			}
 			AccessibilityServer::get_singleton()->update_set_popup_type(ae, AccessibilityServerEnums::AccessibilityPopupType::POPUP_LIST);
+			AccessibilityServer::get_singleton()->update_set_shortcut(ae, "Alt+Down");
 
 			// ComboBox properties.
 			AccessibilityServer::get_singleton()->update_set_list_item_count(ae, get_item_count());

@@ -93,6 +93,7 @@ class AccessibilityServerAccessKit : public AccessibilityServer {
 		String placeholder;
 		String author_id;
 		String state_description;
+		String shortcut;
 		RID tooltip_element; // Hidden tooltip element with ROLE_TOOLTIP.
 
 		// Computes the description to expose to UIA: combines the control's

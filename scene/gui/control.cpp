@@ -4747,17 +4747,21 @@ void Control::_notification(int p_notification) {
 			AccessibilityServer::get_singleton()->update_set_bounds(ae, Rect2(Vector2(), data.size_cache));
 			// Translate tooltip for accessibility based on auto-translate mode.
 			{
+				String raw_tooltip = data.tooltip;
+				if (raw_tooltip.is_empty()) {
+					raw_tooltip = get_tooltip(Point2());
+				}
 				String ac_tooltip;
-				if (!data.tooltip.is_empty()) {
+				if (!raw_tooltip.is_empty()) {
 					switch (data.tooltip_auto_translate_mode) {
 						case AUTO_TRANSLATE_MODE_ALWAYS:
-							ac_tooltip = tr(data.tooltip);
+							ac_tooltip = tr(raw_tooltip);
 							break;
 						case AUTO_TRANSLATE_MODE_DISABLED:
-							ac_tooltip = data.tooltip;
+							ac_tooltip = raw_tooltip;
 							break;
 						default: // AUTO_TRANSLATE_MODE_INHERIT.
-							ac_tooltip = atr(data.tooltip);
+							ac_tooltip = atr(raw_tooltip);
 							break;
 					}
 				}

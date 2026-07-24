@@ -91,6 +91,7 @@ protected:
 	void _validate_property(PropertyInfo &p_property) const;
 	static void _bind_methods();
 
+	virtual void gui_input(const Ref<InputEvent> &p_event) override;
 	virtual void shortcut_input(const Ref<InputEvent> &p_event) override;
 
 	virtual AccessibilityServerEnums::AccessibilityRole get_accessibility_default_role() const override;
