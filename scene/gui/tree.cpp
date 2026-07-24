@@ -5181,8 +5181,20 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 			} else {
 				row_state += p_item->collapsed ? ", " + RTR("Collapsed") : ", " + RTR("Expanded");
 			}
+			row_state += ", " + RTR("Group");
 			AccessibilityServer::get_singleton()->update_add_action(p_item->accessibility_row_element, AccessibilityServerEnums::AccessibilityAction::ACTION_COLLAPSE, callable_mp(this, &Tree::_accessibility_action_collapse).bind(p_item));
 			AccessibilityServer::get_singleton()->update_add_action(p_item->accessibility_row_element, AccessibilityServerEnums::AccessibilityAction::ACTION_EXPAND, callable_mp(this, &Tree::_accessibility_action_expand).bind(p_item));
+		}
+
+		TreeItem *parent_item = p_item->get_parent();
+		if (parent_item && (parent_item != root || !hide_root)) {
+			String parent_name = parent_item->get_text(0);
+			if (!parent_name.is_empty()) {
+				if (!row_state.is_empty()) {
+					row_state += ", ";
+				}
+				row_state += vformat(RTR("%s group"), parent_name);
+			}
 		}
 		// Reinforce the row's position in its sibling set so screen readers announce
 		// "X of Y" reliably. aria-posinset / aria-setsize are set above, but not all
