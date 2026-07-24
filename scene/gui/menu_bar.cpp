@@ -321,11 +321,12 @@ void MenuBar::_notification(int p_what) {
 				}
 
 				if (menu.accessibility_element.is_null()) {
-					menu.accessibility_element = AccessibilityServer::get_singleton()->create_sub_element(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_MENU_ITEM);
+					menu.accessibility_element = AccessibilityServer::get_singleton()->create_sub_element(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_GROUP);
 				} else {
 					AccessibilityServer::get_singleton()->element_set_parent(menu.accessibility_element, ae);
 				}
 
+				AccessibilityServer::get_singleton()->update_set_role(menu.accessibility_element, AccessibilityServerEnums::AccessibilityRole::ROLE_GROUP);
 				AccessibilityServer::get_singleton()->update_set_name(menu.accessibility_element, atr(menu.name));
 				AccessibilityServer::get_singleton()->update_set_flag(menu.accessibility_element, AccessibilityServerEnums::AccessibilityFlags::FLAG_DISABLED, menu.disabled);
 				AccessibilityServer::get_singleton()->update_set_popup_type(menu.accessibility_element, AccessibilityServerEnums::AccessibilityPopupType::POPUP_MENU);
@@ -342,13 +343,12 @@ void MenuBar::_notification(int p_what) {
 				bool is_open = (active_menu == i) && (i < popups.size()) && popups[i]->is_visible();
 				// 0 = none, 1 = collapsed (false), 2 = expanded (true)
 				AccessibilityServer::get_singleton()->update_set_expanded(menu.accessibility_element, is_open ? 2 : 1);
-				String menu_state = (is_open ? atr("expanded") : atr("collapsed")) + ", " + atr("Group");
-				AccessibilityServer::get_singleton()->update_set_state_description(menu.accessibility_element, menu_state);
+				AccessibilityServer::get_singleton()->update_set_state_description(menu.accessibility_element, is_open ? atr("expanded") : atr("collapsed"));
 
 				if (i < popups.size()) {
 					if (popups[i]->get_accessibility_element().is_valid()) {
 						if (is_open) {
-							popups[i]->set_accessibility_name(atr(menu.name) + " " + atr("Group"));
+							popups[i]->set_accessibility_name(atr(menu.name));
 							AccessibilityServer::get_singleton()->element_set_parent(popups[i]->get_accessibility_element(), menu.accessibility_element);
 						} else {
 							AccessibilityServer::get_singleton()->element_set_parent(popups[i]->get_accessibility_element(), RID());
