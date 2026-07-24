@@ -2868,20 +2868,16 @@ String Control::get_accessibility_name() const {
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_COMBO_BOX:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_EDITABLE_COMBO_BOX:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_LIST_BOX:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_LIST:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BOX:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BUTTON:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_RADIO_BUTTON:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_SWITCH:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_SLIDER:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_SPIN_BUTTON:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_TREE:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_TREE_GRID:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_GRID:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_TABLE:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_LIST:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_ITEM_LIST:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_COLOR_WELL:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_PROGRESS_INDICATOR:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_COLOR_PICKER:
-			case AccessibilityServerEnums::AccessibilityRole::ROLE_PROGRESS_BAR:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_TREE:
+			case AccessibilityServerEnums::AccessibilityRole::ROLE_TABLE:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_SCROLL_BAR:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_SEARCH_INPUT:
 			case AccessibilityServerEnums::AccessibilityRole::ROLE_DATE_INPUT:
