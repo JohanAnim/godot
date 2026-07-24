@@ -5174,7 +5174,13 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 		String row_state = use_grid_roles ? String() : vformat(RTR("Level %d"), p_level);
 		if (has_children) {
 			AccessibilityServer::get_singleton()->update_set_list_item_expanded(p_item->accessibility_row_element, !p_item->collapsed);
-			row_state += p_item->collapsed ? ", " + RTR("Collapsed") : ", " + RTR("Expanded");
+			int child_cnt = p_item->get_visible_child_count();
+			if (child_cnt > 0) {
+				AccessibilityServer::get_singleton()->update_set_list_item_count(p_item->accessibility_row_element, child_cnt);
+				row_state += p_item->collapsed ? ", " + RTR("Collapsed") + ", " + vformat(RTR("%d items"), child_cnt) : ", " + RTR("Expanded") + ", " + vformat(RTR("%d items"), child_cnt);
+			} else {
+				row_state += p_item->collapsed ? ", " + RTR("Collapsed") : ", " + RTR("Expanded");
+			}
 			AccessibilityServer::get_singleton()->update_add_action(p_item->accessibility_row_element, AccessibilityServerEnums::AccessibilityAction::ACTION_COLLAPSE, callable_mp(this, &Tree::_accessibility_action_collapse).bind(p_item));
 			AccessibilityServer::get_singleton()->update_add_action(p_item->accessibility_row_element, AccessibilityServerEnums::AccessibilityAction::ACTION_EXPAND, callable_mp(this, &Tree::_accessibility_action_expand).bind(p_item));
 		}
@@ -5479,6 +5485,15 @@ void Tree::_notification(int p_what) {
 
 			AccessibilityServerEnums::AccessibilityRole tree_role = accessibility_as_grid ? AccessibilityServerEnums::AccessibilityRole::ROLE_GRID : AccessibilityServerEnums::AccessibilityRole::ROLE_TREE;
 			AccessibilityServer::get_singleton()->update_set_role(ae, tree_role);
+			int top_level_count = 0;
+			if (root) {
+				if (!hide_root) {
+					top_level_count = 1;
+				} else {
+					top_level_count = root->get_visible_child_count();
+				}
+			}
+			AccessibilityServer::get_singleton()->update_set_list_item_count(ae, top_level_count);
 			AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_HIDDEN, !is_visible_in_tree());
 			AccessibilityServer::get_singleton()->update_set_flag(ae, AccessibilityServerEnums::AccessibilityFlags::FLAG_MULTISELECTABLE, select_mode == SELECT_MULTI);
 
