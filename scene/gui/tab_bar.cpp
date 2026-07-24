@@ -455,6 +455,8 @@ void TabBar::_notification(int p_what) {
 				AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_TAB_BAR);
 			}
 			AccessibilityServer::get_singleton()->update_set_list_item_count(ae, tabs.size());
+			AccessibilityServer::get_singleton()->update_set_tooltip(ae, String());
+			AccessibilityServer::get_singleton()->update_set_description(ae, String());
 
 			for (int i = 0; i < tabs.size(); i++) {
 				const Tab &item = tabs[i];

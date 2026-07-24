@@ -4746,9 +4746,6 @@ void Control::_notification(int p_notification) {
 			// Translate tooltip for accessibility based on auto-translate mode.
 			{
 				String raw_tooltip = data.tooltip;
-				if (raw_tooltip.is_empty()) {
-					raw_tooltip = get_tooltip(Point2());
-				}
 				String ac_tooltip;
 				if (!raw_tooltip.is_empty()) {
 					switch (data.tooltip_auto_translate_mode) {
