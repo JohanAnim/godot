@@ -1097,7 +1097,6 @@ _FORCE_INLINE_ void AccessibilityServerAccessKit::_ensure_node(const RID &p_id, 
 	}
 
 	if (p_ae->parent.is_valid()) {
-		WindowData *wd = windows.getptr(p_ae->window_id);
 		if (wd && !wd->update.has(p_ae->parent)) {
 			wd->update.insert(p_ae->parent);
 			AccessibilityElement *parent_ae = rid_owner.get_or_null(p_ae->parent);

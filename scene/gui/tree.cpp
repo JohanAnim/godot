@@ -5132,7 +5132,6 @@ RID Tree::_accessibility_get_item_parent_element(TreeItem *p_item) const {
 void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_row, int p_level) {
 	const bool row_is_exposed = (p_item != root || !hide_root) && p_item->is_visible_in_tree();
 	const bool has_children = p_item->get_child_count() > 0;
-	const bool has_visible_children = p_item->get_visible_child_count() > 0;
 
 	int sibling_index = 0;
 	int sibling_count = 1;
