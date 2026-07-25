@@ -149,10 +149,37 @@ void AudioStreamPlayer3D::_calc_output_vol(const Vector3 &source_dir, real_t tig
 	}
 }
 
+#include <mysofa.h>
+
 // Set the volume to cosine of half horizontal the angle from the source to the left/right speaker direction ignoring elevation.
 // Then scale `cosx` so that greatest ratio of the speaker volumes is `1-panning_strength`.
 // See https://github.com/godotengine/godot/issues/103989 for evidence that this is the most standard implementation.
 AudioFrame AudioStreamPlayer3D::_calc_output_vol_stereo(const Vector3 &source_dir, real_t panning_strength) {
+	if (GLOBAL_GET_CACHED(bool, "audio/general/3d_hrtf_enabled")) {
+		struct MYSOFA_EASY *easy = AudioServer::get_singleton() ? AudioServer::get_singleton()->get_hrtf_easy_handle() : nullptr;
+		if (easy) {
+			float ir_l[512] = { 0.0f };
+			float ir_r[512] = { 0.0f };
+			float delay_l = 0.0f, delay_r = 0.0f;
+			mysofa_getfilter_float(easy, (float)source_dir.x, (float)source_dir.y, (float)source_dir.z, ir_l, ir_r, &delay_l, &delay_r);
+
+			float energy_l = 0.0f;
+			float energy_r = 0.0f;
+			for (int i = 0; i < 64; i++) {
+				energy_l += ir_l[i] * ir_l[i];
+				energy_r += ir_r[i] * ir_r[i];
+			}
+			float gain_l = sqrt(energy_l);
+			float gain_r = sqrt(energy_r);
+			float max_g = MAX(gain_l, gain_r);
+			if (max_g > 0.0001f) {
+				gain_l /= max_g;
+				gain_r /= max_g;
+			}
+			return AudioFrame(gain_l, gain_r);
+		}
+	}
+
 	double flatrad = sqrt(source_dir.x * source_dir.x + source_dir.z * source_dir.z);
 	double g = CLAMP((1.0 - panning_strength) * (1.0 - panning_strength), 0.0, 1.0);
 	double f = (1.0 - g) / (1.0 + g);

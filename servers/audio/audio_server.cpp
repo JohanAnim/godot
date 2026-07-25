@@ -30,9 +30,12 @@
 
 #include "audio_server.h"
 
+#include <mysofa.h>
+
 #include "core/config/project_settings.h"
 #include "core/debugger/engine_debugger.h"
 #include "core/error/error_macros.h"
+#include "core/io/file_access.h"
 #include "core/io/resource_loader.h"
 #include "core/math/audio_frame.h"
 #include "core/object/class_db.h"
@@ -1546,6 +1549,16 @@ void AudioServer::init() {
 #endif
 
 	GLOBAL_DEF_RST(PropertyInfo(Variant::INT, "audio/video/video_delay_compensation_ms", PROPERTY_HINT_RANGE, "-1000,1000,1,suffix:ms"), 0);
+
+	GLOBAL_DEF_RST(PropertyInfo(Variant::BOOL, "audio/general/3d_hrtf_enabled"), false);
+	GLOBAL_DEF_RST(PropertyInfo(Variant::INT, "audio/general/3d_hrtf_profile_type", PROPERTY_HINT_ENUM, "Default (KEMAR),IRCAM Listen,Custom .sofa File"), 0);
+	GLOBAL_DEF_RST(PropertyInfo(Variant::STRING, "audio/general/3d_hrtf_custom_sofa_path", PROPERTY_HINT_FILE, "*.sofa"), "");
+
+	String sofa_path = GLOBAL_GET("audio/general/3d_hrtf_custom_sofa_path");
+	if (!sofa_path.is_empty() && FileAccess::exists(sofa_path)) {
+		int err = 0;
+		hrtf_easy_handle = mysofa_open(sofa_path.utf8().ptr(), (float)get_mix_rate(), &hrtf_filter_length, &err);
+	}
 }
 
 void AudioServer::update() {
@@ -2140,6 +2153,10 @@ AudioServer::AudioServer() {
 }
 
 AudioServer::~AudioServer() {
+	if (hrtf_easy_handle) {
+		mysofa_close(hrtf_easy_handle);
+		hrtf_easy_handle = nullptr;
+	}
 	// Cleanup resources while we still have an active AudioServer singleton,
 	// for resources that depend on the singleton still existing.
 	_cleanup_lists();

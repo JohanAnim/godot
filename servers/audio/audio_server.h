@@ -520,6 +520,13 @@ public:
 	double get_sample_playback_position(const Ref<AudioSamplePlayback> &p_playback);
 	void update_sample_playback_pitch_scale(const Ref<AudioSamplePlayback> &p_playback, float p_pitch_scale = 0.0f);
 
+	struct MYSOFA_EASY *hrtf_easy_handle = nullptr;
+	int hrtf_filter_length = 0;
+
+public:
+	struct MYSOFA_EASY *get_hrtf_easy_handle() const { return hrtf_easy_handle; }
+	int get_hrtf_filter_length() const { return hrtf_filter_length; }
+
 	AudioServer();
 	virtual ~AudioServer();
 };
