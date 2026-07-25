@@ -36,7 +36,6 @@ jobs:
         with:
           safe_output: false # Output passed to environment variable to avoid command injection.
           separator: '" "' # To account for paths with spaces, ensure our items are split by quotes internally.
-          skip_initial_fetch: true
           files_yaml_from_source_file: .github/changed_files.yml
 
       - name: Style checks via prek
