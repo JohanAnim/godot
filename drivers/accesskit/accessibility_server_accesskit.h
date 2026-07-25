@@ -161,7 +161,6 @@ class AccessibilityServerAccessKit : public AccessibilityServer {
 	void _free_recursive(WindowData *p_wd, const RID &p_id);
 	_FORCE_INLINE_ void _ensure_node(const RID &p_id, AccessibilityElement *p_ae);
 
-
 	bool in_accessibility_update = false;
 	Callable update_cb;
 	Vector<RID> elements_to_free_after_update;

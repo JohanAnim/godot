@@ -5320,28 +5320,28 @@ void Tree::_accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_ro
 				for (int i = 0; i < p_item->cells.size(); i++) {
 					TreeItem::Cell &cell = p_item->cells.write[i];
 
-				if (cell.accessibility_cell_element.is_null()) {
-					AccessibilityServerEnums::AccessibilityRole cell_role;
-					if (cell.mode == TreeItem::CELL_MODE_CHECK) {
-						cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BOX;
-					} else if (accessibility_as_grid) {
-						cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_GRID_CELL;
+					if (cell.accessibility_cell_element.is_null()) {
+						AccessibilityServerEnums::AccessibilityRole cell_role;
+						if (cell.mode == TreeItem::CELL_MODE_CHECK) {
+							cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BOX;
+						} else if (accessibility_as_grid) {
+							cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_GRID_CELL;
+						} else {
+							cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CELL;
+						}
+						cell.accessibility_cell_element = AccessibilityServer::get_singleton()->create_sub_element(p_item->accessibility_row_element, cell_role);
 					} else {
-						cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CELL;
+						AccessibilityServerEnums::AccessibilityRole cell_role;
+						if (cell.mode == TreeItem::CELL_MODE_CHECK) {
+							cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BOX;
+						} else if (accessibility_as_grid) {
+							cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_GRID_CELL;
+						} else {
+							cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CELL;
+						}
+						AccessibilityServer::get_singleton()->update_set_role(cell.accessibility_cell_element, cell_role);
+						AccessibilityServer::get_singleton()->element_set_parent(cell.accessibility_cell_element, p_item->accessibility_row_element);
 					}
-					cell.accessibility_cell_element = AccessibilityServer::get_singleton()->create_sub_element(p_item->accessibility_row_element, cell_role);
-				} else {
-					AccessibilityServerEnums::AccessibilityRole cell_role;
-					if (cell.mode == TreeItem::CELL_MODE_CHECK) {
-						cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CHECK_BOX;
-					} else if (accessibility_as_grid) {
-						cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_GRID_CELL;
-					} else {
-						cell_role = AccessibilityServerEnums::AccessibilityRole::ROLE_CELL;
-					}
-					AccessibilityServer::get_singleton()->update_set_role(cell.accessibility_cell_element, cell_role);
-					AccessibilityServer::get_singleton()->element_set_parent(cell.accessibility_cell_element, p_item->accessibility_row_element);
-				}
 
 					float cw = get_column_width(i);
 
@@ -6260,7 +6260,6 @@ void Tree::item_deselected(int p_column, TreeItem *p_item) {
 	queue_accessibility_update();
 	queue_redraw();
 }
-
 
 void Tree::update_min_size_for_item_change() {
 	// Only need to update when any scroll bar is disabled because that's the only time item size

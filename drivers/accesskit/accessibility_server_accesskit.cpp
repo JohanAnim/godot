@@ -35,9 +35,9 @@
 #include "servers/text/text_server.h"
 
 #ifdef ANDROID_ENABLED
-#include "platform/android/thread_jandroid.h"
-#include "platform/android/os_android.h"
 #include "platform/android/java_godot_wrapper.h"
+#include "platform/android/os_android.h"
+#include "platform/android/thread_jandroid.h"
 #endif
 
 _FORCE_INLINE_ accesskit_role AccessibilityServerAccessKit::_accessibility_role(AccessibilityServerEnums::AccessibilityRole p_role) const {
@@ -1475,9 +1475,13 @@ void AccessibilityServerAccessKit::update_add_related_radio_group(const RID &p_i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	if (!ae) { return; }
+	if (!ae) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_related_id);
-	if (!other_ae) { return; }
+	if (!other_ae) {
+		return;
+	}
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
 	_ensure_node(p_id, ae);
 
@@ -1488,9 +1492,13 @@ void AccessibilityServerAccessKit::update_set_active_descendant(const RID &p_id,
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	if (!ae) { return; }
+	if (!ae) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
-	if (!other_ae) { return; }
+	if (!other_ae) {
+		return;
+	}
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
 	_ensure_node(p_id, ae);
 
@@ -1501,9 +1509,13 @@ void AccessibilityServerAccessKit::update_set_next_on_line(const RID &p_id, cons
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	if (!ae) { return; }
+	if (!ae) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
-	if (!other_ae) { return; }
+	if (!other_ae) {
+		return;
+	}
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
 	_ensure_node(p_id, ae);
 
@@ -1514,9 +1526,13 @@ void AccessibilityServerAccessKit::update_set_previous_on_line(const RID &p_id, 
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	if (!ae) { return; }
+	if (!ae) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
-	if (!other_ae) { return; }
+	if (!other_ae) {
+		return;
+	}
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
 	_ensure_node(p_id, ae);
 
@@ -1527,9 +1543,13 @@ void AccessibilityServerAccessKit::update_set_member_of(const RID &p_id, const R
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	if (!ae) { return; }
+	if (!ae) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_group_id);
-	if (!other_ae) { return; }
+	if (!other_ae) {
+		return;
+	}
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
 	_ensure_node(p_id, ae);
 
@@ -1540,9 +1560,13 @@ void AccessibilityServerAccessKit::update_set_in_page_link_target(const RID &p_i
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	if (!ae) { return; }
+	if (!ae) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
-	if (!other_ae) { return; }
+	if (!other_ae) {
+		return;
+	}
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
 	_ensure_node(p_id, ae);
 
@@ -1553,9 +1577,13 @@ void AccessibilityServerAccessKit::update_set_error_message(const RID &p_id, con
 	ERR_FAIL_COND_MSG(!in_accessibility_update, "Accessibility updates are only allowed inside the NOTIFICATION_ACCESSIBILITY_UPDATE notification.");
 
 	AccessibilityElement *ae = rid_owner.get_or_null(p_id);
-	if (!ae) { return; }
+	if (!ae) {
+		return;
+	}
 	AccessibilityElement *other_ae = rid_owner.get_or_null(p_other_id);
-	if (!other_ae) { return; }
+	if (!other_ae) {
+		return;
+	}
 	ERR_FAIL_COND(other_ae->window_id != ae->window_id);
 	_ensure_node(p_id, ae);
 
