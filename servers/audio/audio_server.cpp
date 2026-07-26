@@ -31,10 +31,12 @@
 #include "audio_server.h"
 
 #include <mysofa.h>
+#include "thirdparty/libmysofa/default_sofa.gen.h"
 
 #include "core/config/project_settings.h"
 #include "core/debugger/engine_debugger.h"
 #include "core/error/error_macros.h"
+#include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 #include "core/io/resource_loader.h"
 #include "core/math/audio_frame.h"
@@ -464,14 +466,16 @@ void AudioServer::_mix_step() {
 
 			// It's important to know whether or not this bus was active in the previous mix step of this stream. If it was, we need to perform volume interpolation to avoid pops.
 			int prev_bus_idx = -1;
-			for (int search_idx = 0; search_idx < MAX_BUSES_PER_PLAYBACK; search_idx++) {
-				if (!playback->prev_bus_details->bus_active[search_idx]) {
-					continue;
-				}
-				// If the StringNames of the buses match, we've found the previous bus index. This indicates that this playback mixed to `prev_bus_details->bus[prev_bus_index]` in the previous mix step, which gives us a way to look up the playback's previous volume.
-				if (playback->prev_bus_details->bus[search_idx].hash() == bus_details.bus[idx].hash()) {
-					prev_bus_idx = search_idx;
-					break;
+			if (playback->prev_bus_details) {
+				for (int search_idx = 0; search_idx < MAX_BUSES_PER_PLAYBACK; search_idx++) {
+					if (!playback->prev_bus_details->bus_active[search_idx]) {
+						continue;
+					}
+					// If the StringNames of the buses match, we've found the previous bus index. This indicates that this playback mixed to `prev_bus_details->bus[prev_bus_index]` in the previous mix step, which gives us a way to look up the playback's previous volume.
+					if (playback->prev_bus_details->bus[search_idx].hash() == bus_details.bus[idx].hash()) {
+						prev_bus_idx = search_idx;
+						break;
+					}
 				}
 			}
 
@@ -488,19 +492,26 @@ void AudioServer::_mix_step() {
 				// If this bus was not active in the previous mix step, we want to start playback at the full volume to avoid crushing transients.
 				AudioFrame prev_channel_vol = channel_vol;
 				// If this bus was active in the previous mix step, we need to interpolate between the previous volume and the current volume to avoid pops. Set `prev_channel_volume` accordingly.
-				if (prev_bus_idx != -1) {
+				if (prev_bus_idx != -1 && playback->prev_bus_details) {
 					prev_channel_vol = playback->prev_bus_details->volume[prev_bus_idx][channel_idx];
 				}
-				_mix_step_for_channel(channel_buf, buf, prev_channel_vol, channel_vol, playback->attenuation_filter_cutoff_hz.get(), playback->highshelf_gain.get(), &playback->filter_process[channel_idx * 2], &playback->filter_process[channel_idx * 2 + 1]);
+				bool prev_hrtf_act = playback->prev_bus_details ? playback->prev_bus_details->hrtf_active : false;
+				const float *prev_ir_l = playback->prev_bus_details ? playback->prev_bus_details->hrtf_ir_l : nullptr;
+				const float *prev_ir_r = playback->prev_bus_details ? playback->prev_bus_details->hrtf_ir_r : nullptr;
+				int prev_taps = playback->prev_bus_details ? playback->prev_bus_details->hrtf_taps : 0;
+				float prev_delay_l = playback->prev_bus_details ? playback->prev_bus_details->hrtf_delay_l : 0.0f;
+				float prev_delay_r = playback->prev_bus_details ? playback->prev_bus_details->hrtf_delay_r : 0.0f;
+				_mix_step_for_channel(channel_buf, &buf[LOOKAHEAD_BUFFER_SIZE], prev_channel_vol, channel_vol, playback->attenuation_filter_cutoff_hz.get(), playback->highshelf_gain.get(), &playback->filter_process[channel_idx * 2], &playback->filter_process[channel_idx * 2 + 1], channel_idx, bus_details.hrtf_active, bus_details.hrtf_ir_l, bus_details.hrtf_ir_r, bus_details.hrtf_taps, bus_details.hrtf_delay_l, bus_details.hrtf_delay_r, prev_hrtf_act, prev_ir_l, prev_ir_r, prev_taps, prev_delay_l, prev_delay_r, playback->hrtf_history[idx]);
 			}
 		}
 
 		// Now go through and fade-out any buses that were being played to previously that we missed by going through current data.
-		for (int idx = 0; idx < MAX_BUSES_PER_PLAYBACK; idx++) {
-			if (!playback->prev_bus_details->bus_active[idx]) {
-				continue;
-			}
-			int bus_idx = thread_find_bus_index(playback->prev_bus_details->bus[idx]);
+		if (playback->prev_bus_details) {
+			for (int idx = 0; idx < MAX_BUSES_PER_PLAYBACK; idx++) {
+				if (!playback->prev_bus_details->bus_active[idx]) {
+					continue;
+				}
+				int bus_idx = thread_find_bus_index(playback->prev_bus_details->bus[idx]);
 
 			int current_bus_idx = -1;
 			for (int search_idx = 0; search_idx < MAX_BUSES_PER_PLAYBACK; search_idx++) {
@@ -516,21 +527,38 @@ void AudioServer::_mix_step() {
 			for (int channel_idx = 0; channel_idx < channel_count; channel_idx++) {
 				AudioFrame *channel_buf = thread_get_channel_mix_buffer(bus_idx, channel_idx);
 				AudioFrame prev_channel_vol = playback->prev_bus_details->volume[idx][channel_idx];
+				bool prev_hrtf_act = playback->prev_bus_details ? playback->prev_bus_details->hrtf_active : false;
+				const float *prev_ir_l = playback->prev_bus_details ? playback->prev_bus_details->hrtf_ir_l : nullptr;
+				const float *prev_ir_r = playback->prev_bus_details ? playback->prev_bus_details->hrtf_ir_r : nullptr;
+				int prev_taps = playback->prev_bus_details ? playback->prev_bus_details->hrtf_taps : 0;
+				float prev_delay_l = playback->prev_bus_details ? playback->prev_bus_details->hrtf_delay_l : 0.0f;
+				float prev_delay_r = playback->prev_bus_details ? playback->prev_bus_details->hrtf_delay_r : 0.0f;
 				// Fade out to silence. This could be replaced with an exponential fadeout of the samples from the lookahead buffer for more punchy results.
-				_mix_step_for_channel(channel_buf, buf, prev_channel_vol, AudioFrame(0, 0), playback->attenuation_filter_cutoff_hz.get(), playback->highshelf_gain.get(), &playback->filter_process[channel_idx * 2], &playback->filter_process[channel_idx * 2 + 1]);
+				_mix_step_for_channel(channel_buf, &buf[LOOKAHEAD_BUFFER_SIZE], prev_channel_vol, AudioFrame(0, 0), playback->attenuation_filter_cutoff_hz.get(), playback->highshelf_gain.get(), &playback->filter_process[channel_idx * 2], &playback->filter_process[channel_idx * 2 + 1], channel_idx, bus_details.hrtf_active, bus_details.hrtf_ir_l, bus_details.hrtf_ir_r, bus_details.hrtf_taps, bus_details.hrtf_delay_l, bus_details.hrtf_delay_r, prev_hrtf_act, prev_ir_l, prev_ir_r, prev_taps, prev_delay_l, prev_delay_r, playback->hrtf_history[idx]);
 			}
 		}
+	}
 
 		// Copy the bus details we mixed with to the previous bus details to maintain volume ramps.
-		for (int i = 0; i < MAX_BUSES_PER_PLAYBACK; i++) {
-			playback->prev_bus_details->bus_active[i] = bus_details.bus_active[i];
-		}
-		for (int i = 0; i < MAX_BUSES_PER_PLAYBACK; i++) {
-			playback->prev_bus_details->bus[i] = bus_details.bus[i];
-		}
-		for (int i = 0; i < MAX_BUSES_PER_PLAYBACK; i++) {
-			for (int j = 0; j < MAX_CHANNELS_PER_BUS; j++) {
-				playback->prev_bus_details->volume[i][j] = bus_details.volume[i][j];
+		if (playback->prev_bus_details) {
+			playback->prev_bus_details->hrtf_active = bus_details.hrtf_active;
+			playback->prev_bus_details->hrtf_taps = bus_details.hrtf_taps;
+			playback->prev_bus_details->hrtf_delay_l = bus_details.hrtf_delay_l;
+			playback->prev_bus_details->hrtf_delay_r = bus_details.hrtf_delay_r;
+			for (int i = 0; i < bus_details.hrtf_taps; i++) {
+				playback->prev_bus_details->hrtf_ir_l[i] = bus_details.hrtf_ir_l[i];
+				playback->prev_bus_details->hrtf_ir_r[i] = bus_details.hrtf_ir_r[i];
+			}
+			for (int i = 0; i < MAX_BUSES_PER_PLAYBACK; i++) {
+				playback->prev_bus_details->bus_active[i] = bus_details.bus_active[i];
+			}
+			for (int i = 0; i < MAX_BUSES_PER_PLAYBACK; i++) {
+				playback->prev_bus_details->bus[i] = bus_details.bus[i];
+			}
+			for (int i = 0; i < MAX_BUSES_PER_PLAYBACK; i++) {
+				for (int j = 0; j < MAX_CHANNELS_PER_BUS; j++) {
+					playback->prev_bus_details->volume[i][j] = bus_details.volume[i][j];
+				}
 			}
 		}
 
@@ -678,8 +706,113 @@ void AudioServer::_mix_step() {
 	to_mix = buffer_size;
 }
 
-void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_source_buf, AudioFrame p_vol_start, AudioFrame p_vol_final, float p_attenuation_filter_cutoff_hz, float p_highshelf_gain, AudioFilterSW::Processor *p_processor_l, AudioFilterSW::Processor *p_processor_r) {
-	// TODO: In the future it could be nice to replace all of these hardcoded effects with something a bit cleaner and more flexible, but for now this is what we do to support 3D audio players.
+void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_source_buf, AudioFrame p_vol_start, AudioFrame p_vol_final, float p_attenuation_filter_cutoff_hz, float p_highshelf_gain, AudioFilterSW::Processor *p_processor_l, AudioFilterSW::Processor *p_processor_r, int p_channel_idx, bool p_hrtf_active, const float *p_hrtf_ir_l, const float *p_hrtf_ir_r, int p_hrtf_taps, float p_hrtf_delay_l, float p_hrtf_delay_r, bool p_prev_hrtf_active, const float *p_prev_hrtf_ir_l, const float *p_prev_hrtf_ir_r, int p_prev_hrtf_taps, float p_prev_hrtf_delay_l, float p_prev_hrtf_delay_r, AudioFrame *p_history_buf) {
+	if (p_hrtf_active && p_hrtf_ir_l && p_hrtf_ir_r && p_hrtf_taps > 0 && p_history_buf) {
+		if (p_channel_idx == 0) {
+			int taps = MIN(p_hrtf_taps, 256);
+			int prev_taps = (p_prev_hrtf_active && p_prev_hrtf_ir_l && p_prev_hrtf_ir_r && p_prev_hrtf_taps > 0) ? MIN(p_prev_hrtf_taps, 256) : 0;
+
+			float mix_rate = (float)AudioServer::get_singleton()->get_mix_rate();
+			float delay_l_s = p_hrtf_delay_l * mix_rate;
+			float delay_r_s = p_hrtf_delay_r * mix_rate;
+			float prev_delay_l_s = p_prev_hrtf_active ? p_prev_hrtf_delay_l * mix_rate : delay_l_s;
+			float prev_delay_r_s = p_prev_hrtf_active ? p_prev_hrtf_delay_r * mix_rate : delay_r_s;
+
+			AudioFilterSW filter;
+			bool use_highshelf = (p_highshelf_gain != 0 && p_processor_l && p_processor_r);
+			if (use_highshelf) {
+				filter.set_mode(AudioFilterSW::HIGHSHELF);
+				filter.set_sampling_rate(AudioServer::get_singleton()->get_mix_rate());
+				filter.set_cutoff(p_attenuation_filter_cutoff_hz);
+				filter.set_resonance(1);
+				filter.set_stages(1);
+				filter.set_gain(p_highshelf_gain);
+
+				bool is_just_started = p_vol_start.left == 0 && p_vol_start.right == 0;
+				p_processor_l->set_filter(&filter, is_just_started);
+				p_processor_l->update_coeffs(buffer_size);
+				p_processor_r->set_filter(&filter, is_just_started);
+				p_processor_r->update_coeffs(buffer_size);
+			}
+
+			auto get_sample = [&](float p_pos) -> float {
+				int i_pos = (int)Math::floor(p_pos);
+				float frac = p_pos - (float)i_pos;
+				auto fetch = [&](int idx) -> float {
+					if (idx >= 0) {
+						return (p_source_buf[idx].left + p_source_buf[idx].right) * 0.5f;
+					} else {
+						int hist_idx = 256 + idx;
+						if (hist_idx >= 0 && hist_idx < 256) {
+							return (p_history_buf[hist_idx].left + p_history_buf[hist_idx].right) * 0.5f;
+						}
+						return 0.0f;
+					}
+				};
+				return (1.0f - frac) * fetch(i_pos) + frac * fetch(i_pos + 1);
+			};
+
+			for (unsigned int frame_idx = 0; frame_idx < buffer_size; frame_idx++) {
+				float lerp_param = (float)frame_idx / buffer_size;
+				AudioFrame vol = p_vol_final * lerp_param + (1.0f - lerp_param) * p_vol_start;
+
+				float curr_d_l = prev_delay_l_s + lerp_param * (delay_l_s - prev_delay_l_s);
+				float curr_d_r = prev_delay_r_s + lerp_param * (delay_r_s - prev_delay_r_s);
+
+				float conv_l = 0.0f;
+				float conv_r = 0.0f;
+
+				for (int k = 0; k < taps; k++) {
+					float in_val_l = get_sample((float)frame_idx - (float)k - curr_d_l);
+					float in_val_r = get_sample((float)frame_idx - (float)k - curr_d_r);
+
+					float ir_l_k = p_hrtf_ir_l[k];
+					float ir_r_k = p_hrtf_ir_r[k];
+					if (prev_taps > 0) {
+						float prev_l = (k < prev_taps) ? p_prev_hrtf_ir_l[k] : 0.0f;
+						float prev_r = (k < prev_taps) ? p_prev_hrtf_ir_r[k] : 0.0f;
+						ir_l_k = prev_l + lerp_param * (ir_l_k - prev_l);
+						ir_r_k = prev_r + lerp_param * (ir_r_k - prev_r);
+					}
+
+					conv_l += ir_l_k * in_val_l;
+					conv_r += ir_r_k * in_val_r;
+				}
+
+				if (!Math::is_finite(conv_l)) {
+					conv_l = 0.0f;
+				}
+				if (!Math::is_finite(conv_r)) {
+					conv_r = 0.0f;
+				}
+
+				if (use_highshelf) {
+					p_processor_l->process_one_interp(conv_l);
+					p_processor_r->process_one_interp(conv_r);
+				}
+
+				p_out_buf[frame_idx].left += conv_l * vol.left;
+				p_out_buf[frame_idx].right += conv_r * vol.right;
+			}
+
+			// Update history buffer for seamless block-to-block continuity
+			if (buffer_size >= 256) {
+				for (int k = 0; k < 256; k++) {
+					p_history_buf[k] = p_source_buf[buffer_size - 256 + k];
+				}
+			} else {
+				int shift = 256 - (int)buffer_size;
+				for (int k = 0; k < shift; k++) {
+					p_history_buf[k] = p_history_buf[k + buffer_size];
+				}
+				for (unsigned int k = 0; k < buffer_size; k++) {
+					p_history_buf[shift + k] = p_source_buf[k];
+				}
+			}
+		}
+		return;
+	}
+
 	if (p_highshelf_gain != 0) {
 		AudioFilterSW filter;
 		filter.set_mode(AudioFilterSW::HIGHSHELF);
@@ -699,7 +832,6 @@ void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_sou
 		p_processor_r->update_coeffs(buffer_size);
 
 		for (unsigned int frame_idx = 0; frame_idx < buffer_size; frame_idx++) {
-			// TODO: Make lerp speed buffer-size-invariant if buffer_size ever becomes a project setting to avoid very small buffer sizes causing pops due to too-fast lerps.
 			float lerp_param = (float)frame_idx / buffer_size;
 			AudioFrame vol = p_vol_final * lerp_param + (1 - lerp_param) * p_vol_start;
 			AudioFrame mixed = vol * p_source_buf[frame_idx];
@@ -710,7 +842,6 @@ void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_sou
 
 	} else {
 		for (unsigned int frame_idx = 0; frame_idx < buffer_size; frame_idx++) {
-			// TODO: Make lerp speed buffer-size-invariant if buffer_size ever becomes a project setting to avoid very small buffer sizes causing pops due to too-fast lerps.
 			float lerp_param = (float)frame_idx / buffer_size;
 			p_out_buf[frame_idx] += (p_vol_final * lerp_param + (1 - lerp_param) * p_vol_start) * p_source_buf[frame_idx];
 		}
@@ -1248,7 +1379,7 @@ void AudioServer::start_playback_stream(Ref<AudioStreamPlayback> p_playback, con
 	start_playback_stream(p_playback, map, p_start_time, p_pitch_scale);
 }
 
-void AudioServer::start_playback_stream(Ref<AudioStreamPlayback> p_playback, const HashMap<StringName, Vector<AudioFrame>> &p_bus_volumes, float p_start_time, float p_pitch_scale, float p_highshelf_gain, float p_attenuation_cutoff_hz) {
+void AudioServer::start_playback_stream(Ref<AudioStreamPlayback> p_playback, const HashMap<StringName, Vector<AudioFrame>> &p_bus_volumes, float p_start_time, float p_pitch_scale, float p_highshelf_gain, float p_attenuation_cutoff_hz, bool p_hrtf_active, const float *p_hrtf_ir_l, const float *p_hrtf_ir_r, int p_hrtf_taps, float p_hrtf_delay_l, float p_hrtf_delay_r) {
 	ERR_FAIL_COND(p_playback.is_null());
 
 	AudioStreamPlaybackListNode *playback_node = new AudioStreamPlaybackListNode();
@@ -1256,9 +1387,20 @@ void AudioServer::start_playback_stream(Ref<AudioStreamPlayback> p_playback, con
 	playback_node->stream_playback->start(p_start_time);
 
 	AudioStreamPlaybackBusDetails *new_bus_details = new AudioStreamPlaybackBusDetails();
+	new_bus_details->hrtf_active = p_hrtf_active;
+	new_bus_details->hrtf_taps = MIN(p_hrtf_taps, 256);
+	new_bus_details->hrtf_delay_l = p_hrtf_delay_l;
+	new_bus_details->hrtf_delay_r = p_hrtf_delay_r;
+	if (p_hrtf_active && p_hrtf_ir_l && p_hrtf_ir_r) {
+		for (int i = 0; i < new_bus_details->hrtf_taps; i++) {
+			new_bus_details->hrtf_ir_l[i] = p_hrtf_ir_l[i];
+			new_bus_details->hrtf_ir_r[i] = p_hrtf_ir_r[i];
+		}
+	}
+
 	int idx = 0;
 	for (KeyValue<StringName, Vector<AudioFrame>> pair : p_bus_volumes) {
-		if (pair.value.size() < channel_count || pair.value.size() != MAX_CHANNELS_PER_BUS) {
+		if (pair.value.is_empty()) {
 			delete playback_node;
 			delete new_bus_details;
 			ERR_FAIL();
@@ -1266,8 +1408,10 @@ void AudioServer::start_playback_stream(Ref<AudioStreamPlayback> p_playback, con
 
 		new_bus_details->bus_active[idx] = true;
 		new_bus_details->bus[idx] = pair.key;
+		int pair_len = pair.value.size();
 		for (int channel_idx = 0; channel_idx < MAX_CHANNELS_PER_BUS; channel_idx++) {
-			new_bus_details->volume[idx][channel_idx] = pair.value[channel_idx];
+			int v_idx = MIN(channel_idx, pair_len - 1);
+			new_bus_details->volume[idx][channel_idx] = pair.value[v_idx];
 		}
 		idx++;
 	}
@@ -1331,7 +1475,7 @@ void AudioServer::set_playback_bus_exclusive(Ref<AudioStreamPlayback> p_playback
 	set_playback_bus_volumes_linear(p_playback, map);
 }
 
-void AudioServer::set_playback_bus_volumes_linear(Ref<AudioStreamPlayback> p_playback, const HashMap<StringName, Vector<AudioFrame>> &p_bus_volumes) {
+void AudioServer::set_playback_bus_volumes_linear(Ref<AudioStreamPlayback> p_playback, const HashMap<StringName, Vector<AudioFrame>> &p_bus_volumes, bool p_hrtf_active, const float *p_hrtf_ir_l, const float *p_hrtf_ir_r, int p_hrtf_taps, float p_hrtf_delay_l, float p_hrtf_delay_r) {
 	ERR_FAIL_COND(p_bus_volumes.size() > MAX_BUSES_PER_PLAYBACK);
 
 	// Samples.
@@ -1347,20 +1491,33 @@ void AudioServer::set_playback_bus_volumes_linear(Ref<AudioStreamPlayback> p_pla
 	}
 	AudioStreamPlaybackBusDetails *old_bus_details, *new_bus_details = new AudioStreamPlaybackBusDetails();
 
+	new_bus_details->hrtf_active = p_hrtf_active;
+	new_bus_details->hrtf_taps = MIN(p_hrtf_taps, 256);
+	new_bus_details->hrtf_delay_l = p_hrtf_delay_l;
+	new_bus_details->hrtf_delay_r = p_hrtf_delay_r;
+	if (p_hrtf_active && p_hrtf_ir_l && p_hrtf_ir_r) {
+		for (int i = 0; i < new_bus_details->hrtf_taps; i++) {
+			new_bus_details->hrtf_ir_l[i] = p_hrtf_ir_l[i];
+			new_bus_details->hrtf_ir_r[i] = p_hrtf_ir_r[i];
+		}
+	}
+
 	int idx = 0;
 	for (KeyValue<StringName, Vector<AudioFrame>> pair : p_bus_volumes) {
 		if (idx >= MAX_BUSES_PER_PLAYBACK) {
 			break;
 		}
-		if (pair.value.size() < channel_count || pair.value.size() != MAX_CHANNELS_PER_BUS) {
+		if (pair.value.is_empty()) {
 			delete new_bus_details;
 			ERR_FAIL();
 		}
 
 		new_bus_details->bus_active[idx] = true;
 		new_bus_details->bus[idx] = pair.key;
+		int pair_len = pair.value.size();
 		for (int channel_idx = 0; channel_idx < MAX_CHANNELS_PER_BUS; channel_idx++) {
-			new_bus_details->volume[idx][channel_idx] = pair.value[channel_idx];
+			int v_idx = MIN(channel_idx, pair_len - 1);
+			new_bus_details->volume[idx][channel_idx] = pair.value[v_idx];
 		}
 		idx++;
 	}
@@ -1369,7 +1526,9 @@ void AudioServer::set_playback_bus_volumes_linear(Ref<AudioStreamPlayback> p_pla
 		old_bus_details = playback_node->bus_details.load();
 	} while (!playback_node->bus_details.compare_exchange_strong(old_bus_details, new_bus_details));
 
-	bus_details_graveyard.insert(old_bus_details);
+	if (old_bus_details) {
+		bus_details_graveyard.insert(old_bus_details);
+	}
 }
 
 void AudioServer::set_playback_all_bus_volumes_linear(Ref<AudioStreamPlayback> p_playback, Vector<AudioFrame> p_volumes) {
@@ -1554,10 +1713,28 @@ void AudioServer::init() {
 	GLOBAL_DEF_RST(PropertyInfo(Variant::INT, "audio/general/3d_hrtf_profile_type", PROPERTY_HINT_ENUM, "Default (KEMAR),IRCAM Listen,Custom .sofa File"), 0);
 	GLOBAL_DEF_RST(PropertyInfo(Variant::STRING, "audio/general/3d_hrtf_custom_sofa_path", PROPERTY_HINT_FILE, "*.sofa"), "");
 
+	bool hrtf_enabled = GLOBAL_GET("audio/general/3d_hrtf_enabled");
+	int profile_type = GLOBAL_GET("audio/general/3d_hrtf_profile_type");
 	String sofa_path = GLOBAL_GET("audio/general/3d_hrtf_custom_sofa_path");
-	if (!sofa_path.is_empty() && FileAccess::exists(sofa_path)) {
+
+	if (hrtf_enabled) {
 		int err = 0;
-		hrtf_easy_handle = mysofa_open(sofa_path.utf8().ptr(), (float)get_mix_rate(), &hrtf_filter_length, &err);
+		if (profile_type == 2 && !sofa_path.is_empty() && FileAccess::exists(sofa_path)) {
+			Vector<uint8_t> sofa_bytes = FileAccess::get_file_as_bytes(sofa_path);
+			if (sofa_bytes.size() > 0) {
+				hrtf_easy_handle = mysofa_open_data((const char *)sofa_bytes.ptr(), sofa_bytes.size(), (float)get_mix_rate(), &hrtf_filter_length, &err);
+			}
+		}
+
+		if (!hrtf_easy_handle) {
+			hrtf_easy_handle = mysofa_open_data((const char *)default_kemar_sofa_data, sizeof(default_kemar_sofa_data), (float)get_mix_rate(), &hrtf_filter_length, &err);
+		}
+
+		if (hrtf_easy_handle && err == 0) {
+			print_line("HRTF: Native 3D HRTF engine initialized successfully (filter_length: " + itos(hrtf_filter_length) + ")");
+		} else {
+			print_error("HRTF: Failed to initialize native 3D HRTF engine, error code: " + itos(err));
+		}
 	}
 }
 
