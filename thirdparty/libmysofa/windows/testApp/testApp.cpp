@@ -51,13 +51,13 @@ int main()
 	fprintf(stderr, "Radius min: %f, max: %f\n", hrtf->lookup->radius_min, hrtf->lookup->radius_max);
 	fprintf(stderr, "Database: %s\n", mysofa_getAttribute(hrtf->hrtf->attributes, "DatabaseName"));
 	fprintf(stderr, "Listener: %s\n", mysofa_getAttribute(hrtf->hrtf->attributes, "ListenerShortName"));
-	 
+
 	// get index to a position given in t (in spherical)
 	float t[3], a[3];
 	t[0] = 0; // azimuth in deg
 	t[1] = 0; // elevation in deg
 	t[2] = 1.2f; // radius in m
-	
+
 	fprintf(stderr, "Wanted Position: %f, %f, %f\n", t[0], t[1], t[2]);
 	mysofa_s2c(t);
 	int nearest = mysofa_lookup(hrtf->lookup, t);
@@ -74,7 +74,7 @@ int main()
 	IRL=hrtf->hrtf->DataIR.values + nearest*size;
 	IRR= hrtf->hrtf->DataIR.values + nearest*size + hrtf->hrtf->N;
 
-	// save the left HRIR in a file 
+	// save the left HRIR in a file
 	ofstream myfile;
 	myfile.open("hrtf.dat", ios::binary);
 	myfile.write(reinterpret_cast<const char*>(IRL), hrtf->hrtf->N * sizeof(float));
@@ -88,4 +88,3 @@ int main()
 
     return 0;
 }
-
