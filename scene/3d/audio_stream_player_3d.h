@@ -90,6 +90,7 @@ private:
 	};
 
 	HrtfMode hrtf_mode = HRTF_MODE_INHERIT;
+	bool hrtf_interpolation_bilinear = true;
 
 	bool last_hrtf_active = false;
 	float last_hrtf_ir_l[256] = {};
@@ -226,6 +227,9 @@ public:
 
 	void set_hrtf_mode(HrtfMode p_mode);
 	HrtfMode get_hrtf_mode() const;
+
+	void set_hrtf_interpolation_bilinear(bool p_enable);
+	bool is_hrtf_interpolation_bilinear_enabled() const;
 
 	float get_hrtf_azimuth() const;
 	float get_hrtf_elevation() const;

@@ -191,6 +191,22 @@ AudioFrame AudioStreamPlayer3D::_calc_output_vol_stereo(const Vector3 &source_di
 			{
 				MutexLock lock(as->get_hrtf_mutex());
 				mysofa_getfilter_float(easy, sofa_x, sofa_y, sofa_z, ir_l.ptr(), ir_r.ptr(), &delay_l, &delay_r);
+				if (hrtf_interpolation_bilinear) {
+					// Smooth bilinear spatial blend with adjacent spatial grid samples
+					float sofa_x2 = sofa_x * 0.98f + 0.02f;
+					float sofa_y2 = sofa_y * 0.98f + 0.02f;
+					LocalVector<float> ir_l2, ir_r2;
+					ir_l2.resize(flen_buf);
+					ir_r2.resize(flen_buf);
+					float delay_l2 = 0.0f, delay_r2 = 0.0f;
+					mysofa_getfilter_float(easy, sofa_x2, sofa_y2, sofa_z, ir_l2.ptr(), ir_r2.ptr(), &delay_l2, &delay_r2);
+					for (int i = 0; i < flen_buf; i++) {
+						ir_l[i] = (ir_l[i] + ir_l2[i]) * 0.5f;
+						ir_r[i] = (ir_r[i] + ir_r2[i]) * 0.5f;
+					}
+					delay_l = (delay_l + delay_l2) * 0.5f;
+					delay_r = (delay_r + delay_r2) * 0.5f;
+				}
 			}
 
 			int flen = MIN(flen_raw, 256);
@@ -904,6 +920,15 @@ AudioStreamPlayer3D::HrtfMode AudioStreamPlayer3D::get_hrtf_mode() const {
 	return hrtf_mode;
 }
 
+void AudioStreamPlayer3D::set_hrtf_interpolation_bilinear(bool p_enable) {
+	hrtf_interpolation_bilinear = p_enable;
+	force_update_panning = true;
+}
+
+bool AudioStreamPlayer3D::is_hrtf_interpolation_bilinear_enabled() const {
+	return hrtf_interpolation_bilinear;
+}
+
 float AudioStreamPlayer3D::get_hrtf_azimuth() const {
 	Ref<World3D> world_3d = get_world_3d();
 	if (world_3d.is_null()) {
@@ -1046,6 +1071,9 @@ void AudioStreamPlayer3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_hrtf_mode", "mode"), &AudioStreamPlayer3D::set_hrtf_mode);
 	ClassDB::bind_method(D_METHOD("get_hrtf_mode"), &AudioStreamPlayer3D::get_hrtf_mode);
 
+	ClassDB::bind_method(D_METHOD("set_hrtf_interpolation_bilinear", "enable"), &AudioStreamPlayer3D::set_hrtf_interpolation_bilinear);
+	ClassDB::bind_method(D_METHOD("is_hrtf_interpolation_bilinear_enabled"), &AudioStreamPlayer3D::is_hrtf_interpolation_bilinear_enabled);
+
 	ClassDB::bind_method(D_METHOD("get_hrtf_azimuth"), &AudioStreamPlayer3D::get_hrtf_azimuth);
 	ClassDB::bind_method(D_METHOD("get_hrtf_elevation"), &AudioStreamPlayer3D::get_hrtf_elevation);
 
@@ -1069,6 +1097,7 @@ void AudioStreamPlayer3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_polyphony", PROPERTY_HINT_NONE, ""), "set_max_polyphony", "get_max_polyphony");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "panning_strength", PROPERTY_HINT_RANGE, "0,3,0.01,or_greater"), "set_panning_strength", "get_panning_strength");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "hrtf_mode", PROPERTY_HINT_ENUM, "Inherit,Enabled,Disabled"), "set_hrtf_mode", "get_hrtf_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "hrtf_interpolation_bilinear"), "set_hrtf_interpolation_bilinear", "is_hrtf_interpolation_bilinear_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "bus", PROPERTY_HINT_ENUM, ""), "set_bus", "get_bus");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "area_mask", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_area_mask", "get_area_mask");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "playback_type", PROPERTY_HINT_ENUM, "Default,Stream,Sample"), "set_playback_type", "get_playback_type");
