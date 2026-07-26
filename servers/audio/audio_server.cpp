@@ -735,23 +735,33 @@ void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_sou
 				p_processor_r->update_coeffs(buffer_size);
 			}
 
-			auto get_sample = [&](float p_pos) -> float {
+			// --- Precompute mono sample window (history + source) ---
+			// Allows direct indexed access instead of per-tap downmix + bounds check
+			static constexpr int HIST_SIZE = 384;
+			// buffer_size siempre es 512 (ver init), +1 para guarda en idx+1 del borde
+			static constexpr int SAMPLE_WIN_SIZE = HIST_SIZE + 512 + 1;
+			float sample_window[SAMPLE_WIN_SIZE];
+			for (int i = 0; i < HIST_SIZE; i++) {
+				sample_window[i] = (p_history_buf[i].left + p_history_buf[i].right) * 0.5f;
+			}
+			for (unsigned int i = 0; i < buffer_size; i++) {
+				sample_window[HIST_SIZE + i] = (p_source_buf[i].left + p_source_buf[i].right) * 0.5f;
+			}
+			// Último elemento de guarda: extrapola el último sample válido
+			sample_window[HIST_SIZE + buffer_size] = sample_window[HIST_SIZE + buffer_size - 1];
+
+			// Inline fractional sample read from precomputed window
+			// pos is in [-taps - max_delay, buffer_size - 1], HIST_SIZE shift keeps it in bounds
+			auto read_sample = [&](float p_pos) -> float {
 				int i_pos = (int)Math::floor(p_pos);
 				float frac = p_pos - (float)i_pos;
-				auto fetch = [&](int idx) -> float {
-					if (idx >= 0) {
-						return (p_source_buf[idx].left + p_source_buf[idx].right) * 0.5f;
-					} else {
-						int hist_idx = 384 + idx;
-						if (hist_idx >= 0 && hist_idx < 384) {
-							return (p_history_buf[hist_idx].left + p_history_buf[hist_idx].right) * 0.5f;
-						}
-						return 0.0f;
-					}
-				};
-				return (1.0f - frac) * fetch(i_pos) + frac * fetch(i_pos + 1);
+				int idx = i_pos + HIST_SIZE;
+				float s0 = sample_window[idx];
+				float s1 = sample_window[idx + 1];
+				return s0 + frac * (s1 - s0);
 			};
 
+			// --- Main convolution: fast path (no crossfade) ---
 			for (unsigned int frame_idx = 0; frame_idx < buffer_size; frame_idx++) {
 				float lerp_param = (float)frame_idx / buffer_size;
 				AudioFrame vol = p_vol_final * lerp_param + (1.0f - lerp_param) * p_vol_start;
@@ -762,29 +772,68 @@ void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_sou
 				float conv_l = 0.0f;
 				float conv_r = 0.0f;
 
-				for (int k = 0; k < taps; k++) {
-					float in_val_l = get_sample((float)frame_idx - (float)k - curr_d_l);
-					float in_val_r = get_sample((float)frame_idx - (float)k - curr_d_r);
+				if (prev_taps > 0) {
+					// Crossfade path (rare — only ~1 frame when player rotates)
+					for (int k = 0; k < taps; k++) {
+						float pos = (float)frame_idx - (float)k;
+						float sv_l = read_sample(pos - curr_d_l);
+						float sv_r = read_sample(pos - curr_d_r);
 
-					float ir_l_k = p_hrtf_ir_l[k];
-					float ir_r_k = p_hrtf_ir_r[k];
-					if (prev_taps > 0) {
-						float prev_l = (k < prev_taps) ? p_prev_hrtf_ir_l[k] : 0.0f;
-						float prev_r = (k < prev_taps) ? p_prev_hrtf_ir_r[k] : 0.0f;
-						ir_l_k = prev_l + lerp_param * (ir_l_k - prev_l);
-						ir_r_k = prev_r + lerp_param * (ir_r_k - prev_r);
+						float ir_l_k = p_hrtf_ir_l[k];
+						float ir_r_k = p_hrtf_ir_r[k];
+						if (k < prev_taps) {
+							ir_l_k = p_prev_hrtf_ir_l[k] + lerp_param * (ir_l_k - p_prev_hrtf_ir_l[k]);
+							ir_r_k = p_prev_hrtf_ir_r[k] + lerp_param * (ir_r_k - p_prev_hrtf_ir_r[k]);
+						}
+
+						conv_l += ir_l_k * sv_l;
+						conv_r += ir_r_k * sv_r;
 					}
+				} else {
+					// Fast path — no crossfade, 4x unrolled for auto-vectorization
+					int k = 0;
+					for (; k <= taps - 4; k += 4) {
+						float pos_k0 = (float)frame_idx - (float)k;
+						float pos_k1 = pos_k0 - 1.0f;
+						float pos_k2 = pos_k0 - 2.0f;
+						float pos_k3 = pos_k0 - 3.0f;
 
-					conv_l += ir_l_k * in_val_l;
-					conv_r += ir_r_k * in_val_r;
+						float sv_l0 = read_sample(pos_k0 - curr_d_l);
+						float sv_l1 = read_sample(pos_k1 - curr_d_l);
+						float sv_l2 = read_sample(pos_k2 - curr_d_l);
+						float sv_l3 = read_sample(pos_k3 - curr_d_l);
+
+						float sv_r0 = read_sample(pos_k0 - curr_d_r);
+						float sv_r1 = read_sample(pos_k1 - curr_d_r);
+						float sv_r2 = read_sample(pos_k2 - curr_d_r);
+						float sv_r3 = read_sample(pos_k3 - curr_d_r);
+
+						conv_l += p_hrtf_ir_l[k]     * sv_l0
+								+ p_hrtf_ir_l[k + 1] * sv_l1
+								+ p_hrtf_ir_l[k + 2] * sv_l2
+								+ p_hrtf_ir_l[k + 3] * sv_l3;
+
+						conv_r += p_hrtf_ir_r[k]     * sv_r0
+								+ p_hrtf_ir_r[k + 1] * sv_r1
+								+ p_hrtf_ir_r[k + 2] * sv_r2
+								+ p_hrtf_ir_r[k + 3] * sv_r3;
+					}
+					// Remainder taps
+					for (; k < taps; k++) {
+						float pos = (float)frame_idx - (float)k;
+						conv_l += p_hrtf_ir_l[k] * read_sample(pos - curr_d_l);
+						conv_r += p_hrtf_ir_r[k] * read_sample(pos - curr_d_r);
+					}
 				}
 
+#ifdef DEBUG_ENABLED
 				if (!Math::is_finite(conv_l)) {
 					conv_l = 0.0f;
 				}
 				if (!Math::is_finite(conv_r)) {
 					conv_r = 0.0f;
 				}
+#endif
 
 				if (use_highshelf) {
 					p_processor_l->process_one_interp(conv_l);

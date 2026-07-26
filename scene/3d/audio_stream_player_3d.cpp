@@ -179,18 +179,15 @@ AudioFrame AudioStreamPlayer3D::_calc_output_vol_stereo(const Vector3 &source_di
 			float sofa_z =  pos_norm.y;
 
 			int flen_raw = as->get_hrtf_filter_length();
-			int flen_buf = MAX(flen_raw, 512);
-
-			LocalVector<float> ir_l;
-			ir_l.resize(flen_buf);
-			LocalVector<float> ir_r;
-			ir_r.resize(flen_buf);
+			// 2048 floats (~8KB stack) cubre cualquier SOFA real (KEMAR, IRCAM, custom)
+			float ir_l[2048];
+			float ir_r[2048];
 
 			float delay_l = 0.0f, delay_r = 0.0f;
 
 			{
 				MutexLock lock(as->get_hrtf_mutex());
-				mysofa_getfilter_float(easy, sofa_x, sofa_y, sofa_z, ir_l.ptr(), ir_r.ptr(), &delay_l, &delay_r);
+				mysofa_getfilter_float(easy, sofa_x, sofa_y, sofa_z, ir_l, ir_r, &delay_l, &delay_r);
 			}
 
 			int flen = MIN(flen_raw, 256);

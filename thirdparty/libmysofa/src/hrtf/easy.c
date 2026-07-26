@@ -205,8 +205,10 @@ MYSOFA_EXPORT void mysofa_getfilter_float_advanced(
            sizeof(float) * easy->hrtf->C);
   }
 
+  float local_fir[1024];
+  float *fir_buf = (easy->hrtf && easy->hrtf->N * easy->hrtf->R <= 1024) ? local_fir : easy->fir;
   float *res =
-      mysofa_interpolate(easy->hrtf, c, nearest, neighbors, easy->fir, delays);
+      mysofa_interpolate(easy->hrtf, c, nearest, neighbors, fir_buf, delays);
 
   *delayLeft = delays[0];
   *delayRight = delays[1];
