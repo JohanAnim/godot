@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+from misc.utility.scons_hints import *
+
+Import("env")
+
+env_libmysofa = env.Clone()
+env_libmysofa.disable_warnings()
+
+env_libmysofa.Append(
+    CPPPATH=[
+        "#thirdparty/libmysofa/src",
+        "#thirdparty/libmysofa/src/hrtf",
+        "#thirdparty/libmysofa/src/hdf",
+        "#thirdparty/libmysofa/src/resampler",
+        "#thirdparty/zlib",
+    ]
+)
+
+sources = [
+    "src/hrtf/cache.c",
+    "src/hrtf/check.c",
+    "src/hrtf/easy.c",
+    "src/hrtf/interpolate.c",
+    "src/hrtf/kdtree.c",
+    "src/hrtf/lookup.c",
+    "src/hrtf/loudness.c",
+    "src/hrtf/minphase.c",
+    "src/hrtf/neighbors.c",
+    "src/hrtf/reader.c",
+    "src/hrtf/resample.c",
+    "src/hrtf/spherical.c",
+    "src/hrtf/tools.c",
+    "src/hdf/btree.c",
+    "src/hdf/dataobject.c",
+    "src/hdf/fractalhead.c",
+    "src/hdf/gcol.c",
+    "src/hdf/gunzip.c",
+    "src/hdf/superblock.c",
+    "src/resampler/speex_resampler.c",
+]
+
+env_libmysofa.add_source_files(env.servers_sources, sources)
+
+env.Append(CPPPATH=["#thirdparty/libmysofa/src/hrtf"])
