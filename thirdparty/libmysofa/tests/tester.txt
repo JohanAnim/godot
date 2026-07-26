@@ -6,4 +6,3 @@ tester;
 SOFAsave('/tmp/test.sofa',hrtf,9);
 
 You need API_MO for this.
-

@@ -196,7 +196,7 @@ accumulateDiff = function(undefined) {
         stack.length = stack.length - 1;
       }
     } else if (lhs !== rhs) {
-      if (!(ltype === 'number' && rtype === 'number' && 
+      if (!(ltype === 'number' && rtype === 'number' &&
             ((lhs > 0 && lhs * (1-e) < rhs && lhs * (1+e) > rhs) ||
              (lhs <= 0 && lhs * (1-e) > rhs && lhs * (1+e) < rhs)))) {
           if (!(ltype === 'number' && isNaN(lhs) && isNaN(rhs))) {
@@ -432,4 +432,3 @@ else {
     console.log("result ",res);
     process.exit(1);
 }
-

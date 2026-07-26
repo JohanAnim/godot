@@ -473,9 +473,8 @@
 			The base strength of the panning effect for all [AudioStreamPlayer2D] nodes. The panning strength can be further scaled on each Node using [member AudioStreamPlayer2D.panning_strength]. A value of [code]0.0[/code] disables stereo panning entirely, leaving only volume attenuation in place. A value of [code]1.0[/code] completely mutes one of the channels if the sound is located exactly to the left (or right) of the listener.
 			The default value of [code]0.5[/code] is tuned for headphones. When using speakers, you may find lower values to sound better as speakers have a lower stereo separation compared to headphones.
 		</member>
-		<member name="audio/general/3d_panning_strength" type="float" setter="" getter="" default="0.5">
-			The base strength of the panning effect for all [AudioStreamPlayer3D] nodes. The panning strength can be further scaled on each Node using [member AudioStreamPlayer3D.panning_strength]. A value of [code]0.0[/code] disables stereo panning entirely, leaving only volume attenuation in place. A value of [code]1.0[/code] completely mutes one of the channels if the sound is located exactly to the left (or right) of the listener.
-			The default value of [code]0.5[/code] is tuned for headphones which means that the opposite side channel goes no lower than 50% of the volume of the nearside channel. You may find that you can set this value higher for speakers to have the same effect since both ears can hear from each speaker.
+		<member name="audio/general/3d_hrtf_custom_sofa_path" type="String" setter="" getter="" default="">
+			Path to a custom .sofa HRTF acoustic profile file (AES69 format) used when [member audio/general/3d_hrtf_profile_type] is set to [b]Custom .sofa File[/b].
 		</member>
 		<member name="audio/general/3d_hrtf_enabled" type="bool" setter="" getter="" default="false">
 			If [code]true[/code], enables native 3D Head-Related Transfer Function (HRTF) spatial audio via libmysofa for all [AudioStreamPlayer3D] nodes. This provides realistic 360-degree binaural positioning with elevation and depth perception when listening with headphones.
@@ -484,8 +483,9 @@
 		<member name="audio/general/3d_hrtf_profile_type" type="int" setter="" getter="" default="0">
 			Specifies the HRTF acoustic profile dataset to use when [member audio/general/3d_hrtf_enabled] is enabled. Options include [b]Default (KEMAR)[/b], [b]IRCAM Listen[/b], or [b]Custom .sofa File[/b].
 		</member>
-		<member name="audio/general/3d_hrtf_custom_sofa_path" type="String" setter="" getter="" default="">
-			Path to a custom .sofa HRTF acoustic profile file (AES69 format) used when [member audio/general/3d_hrtf_profile_type] is set to [b]Custom .sofa File[/b].
+		<member name="audio/general/3d_panning_strength" type="float" setter="" getter="" default="0.5">
+			The base strength of the panning effect for all [AudioStreamPlayer3D] nodes. The panning strength can be further scaled on each Node using [member AudioStreamPlayer3D.panning_strength]. A value of [code]0.0[/code] disables stereo panning entirely, leaving only volume attenuation in place. A value of [code]1.0[/code] completely mutes one of the channels if the sound is located exactly to the left (or right) of the listener.
+			The default value of [code]0.5[/code] is tuned for headphones which means that the opposite side channel goes no lower than 50% of the volume of the nearside channel. You may find that you can set this value higher for speakers to have the same effect since both ears can hear from each speaker.
 		</member>
 		<member name="audio/general/default_playback_type" type="int" setter="" getter="" default="0" experimental="" keywords="stream, sample">
 			Specifies the default playback type of the platform.
