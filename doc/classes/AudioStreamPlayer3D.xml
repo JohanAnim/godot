@@ -100,6 +100,9 @@
 		<member name="hrtf_mode" type="int" setter="set_hrtf_mode" getter="get_hrtf_mode" enum="AudioStreamPlayer3D.HrtfMode" default="0">
 			Determines whether 3D Head-Related Transfer Function (HRTF) binaural spatialization is applied to this node. If set to [constant HRTF_MODE_INHERIT], the player inherits the global project setting [member ProjectSettings.audio/general/3d_hrtf_enabled].
 		</member>
+		<member name="hrtf_interpolation_bilinear" type="bool" setter="set_hrtf_interpolation_bilinear" getter="is_hrtf_interpolation_bilinear_enabled" default="false">
+			If [code]true[/code], spatial impulse response lookups for HRTF binaural rendering use bilinear spatial interpolation across neighboring direction vectors in the SOFA grid dataset.
+		</member>
 		<member name="max_db" type="float" setter="set_max_db" getter="get_max_db" default="3.0">
 			Sets the absolute maximum of the sound level, in decibels.
 		</member>

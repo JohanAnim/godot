@@ -302,7 +302,7 @@ private:
 		SafeNumeric<float> highshelf_gain;
 		SafeNumeric<float> attenuation_filter_cutoff_hz; // This isn't used unless highshelf_gain is nonzero.
 		AudioFilterSW::Processor filter_process[8];
-		AudioFrame hrtf_history[MAX_BUSES_PER_PLAYBACK][256] = {};
+		AudioFrame hrtf_history[MAX_BUSES_PER_PLAYBACK][384] = {};
 		// Updating this ref after the list node is created breaks consistency guarantees, don't do it!
 		Ref<AudioStreamPlayback> stream_playback;
 		// Playback state determines the fate of a particular AudioStreamListNode during the mix step. Must be atomically replaced.

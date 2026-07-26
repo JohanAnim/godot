@@ -742,8 +742,8 @@ void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_sou
 					if (idx >= 0) {
 						return (p_source_buf[idx].left + p_source_buf[idx].right) * 0.5f;
 					} else {
-						int hist_idx = 256 + idx;
-						if (hist_idx >= 0 && hist_idx < 256) {
+						int hist_idx = 384 + idx;
+						if (hist_idx >= 0 && hist_idx < 384) {
 							return (p_history_buf[hist_idx].left + p_history_buf[hist_idx].right) * 0.5f;
 						}
 						return 0.0f;
@@ -798,12 +798,12 @@ void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_sou
 			}
 
 			// Update history buffer for seamless block-to-block continuity
-			if (buffer_size >= 256) {
-				for (int k = 0; k < 256; k++) {
-					p_history_buf[k] = p_source_buf[buffer_size - 256 + k];
+			if (buffer_size >= 384) {
+				for (int k = 0; k < 384; k++) {
+					p_history_buf[k] = p_source_buf[buffer_size - 384 + k];
 				}
 			} else {
-				int shift = 256 - (int)buffer_size;
+				int shift = 384 - (int)buffer_size;
 				for (int k = 0; k < shift; k++) {
 					p_history_buf[k] = p_history_buf[k + buffer_size];
 				}
@@ -1733,6 +1733,10 @@ void AudioServer::init() {
 		}
 
 		if (!hrtf_easy_handle || err != 0) {
+			if (hrtf_easy_handle) {
+				mysofa_close(hrtf_easy_handle);
+				hrtf_easy_handle = nullptr;
+			}
 			print_error("HRTF: Failed to initialize native 3D HRTF engine, error code: " + itos(err));
 		}
 	}
