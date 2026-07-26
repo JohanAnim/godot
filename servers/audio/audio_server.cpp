@@ -1730,9 +1730,7 @@ void AudioServer::init() {
 			hrtf_easy_handle = mysofa_open_data((const char *)default_kemar_sofa_data, sizeof(default_kemar_sofa_data), (float)get_mix_rate(), &hrtf_filter_length, &err);
 		}
 
-		if (hrtf_easy_handle && err == 0) {
-			print_line("HRTF: Native 3D HRTF engine initialized successfully (filter_length: " + itos(hrtf_filter_length) + ")");
-		} else {
+		if (!hrtf_easy_handle || err != 0) {
 			print_error("HRTF: Failed to initialize native 3D HRTF engine, error code: " + itos(err));
 		}
 	}
