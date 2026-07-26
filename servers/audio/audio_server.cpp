@@ -791,8 +791,10 @@ void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_sou
 					p_processor_r->process_one_interp(conv_r);
 				}
 
-				p_out_buf[frame_idx].left += conv_l * vol.left;
-				p_out_buf[frame_idx].right += conv_r * vol.right;
+				// Apply headroom gain factor (0.85f / -1.4dB) to HRTF convolved output to prevent peak clipping from KEMAR pinna resonance
+				static constexpr float HRTF_HEADROOM_GAIN = 0.85f;
+				p_out_buf[frame_idx].left += conv_l * vol.left * HRTF_HEADROOM_GAIN;
+				p_out_buf[frame_idx].right += conv_r * vol.right * HRTF_HEADROOM_GAIN;
 			}
 
 			// Update history buffer for seamless block-to-block continuity
