@@ -61,7 +61,7 @@ jobs:
 
             ### 🌟 Mejoras de Accesibilidad Nativas:
             - **Navegación por Grupos (`ROLE_GROUP`)**: Submenús de la barra de menú y categorías de árboles expuestos como contenedores nativos para lectores de pantalla.
-            - **Atajo `Alt + Abajo` en `OptionButton`**: Las listas desplegables expanden con `Alt+Abajo` y anuncian la combinación accesible.
+            - **Atajo `Alt + Abajo` en `OptionButton`**: Las listas desplegables expanden con `Alt+Abajo` y anuncian la combinación accessible.
             - **Localización Universal de Tooltips**: Traducción automática de todos los consejos de herramientas del editor (`atr(...)`).
             - **Delimitación Estricta en Pestañas (`TabBar`)**: Limpieza de contaminación de nombres en contenedores.
 
