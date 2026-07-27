@@ -30,7 +30,6 @@
 
 #include "audio_server.h"
 
-#include <mysofa.h>
 #include "thirdparty/libmysofa/default_sofa.gen.h"
 
 #include "core/config/project_settings.h"
@@ -48,6 +47,8 @@
 #include "servers/audio/audio_driver_dummy.h"
 #include "servers/audio/audio_stream.h"
 #include "servers/audio/effects/audio_effect_compressor.h"
+
+#include <mysofa.h>
 
 #ifdef TOOLS_ENABLED
 #define MARK_EDITED set_edited(true);
@@ -513,31 +514,31 @@ void AudioServer::_mix_step() {
 				}
 				int bus_idx = thread_find_bus_index(playback->prev_bus_details->bus[idx]);
 
-			int current_bus_idx = -1;
-			for (int search_idx = 0; search_idx < MAX_BUSES_PER_PLAYBACK; search_idx++) {
-				if (bus_details.bus[search_idx] == playback->prev_bus_details->bus[idx]) {
-					current_bus_idx = search_idx;
+				int current_bus_idx = -1;
+				for (int search_idx = 0; search_idx < MAX_BUSES_PER_PLAYBACK; search_idx++) {
+					if (bus_details.bus[search_idx] == playback->prev_bus_details->bus[idx]) {
+						current_bus_idx = search_idx;
+					}
+				}
+				if (current_bus_idx != -1) {
+					// If we found a corresponding bus in the current bus assignments, we've already mixed to this bus.
+					continue;
+				}
+
+				for (int channel_idx = 0; channel_idx < channel_count; channel_idx++) {
+					AudioFrame *channel_buf = thread_get_channel_mix_buffer(bus_idx, channel_idx);
+					AudioFrame prev_channel_vol = playback->prev_bus_details->volume[idx][channel_idx];
+					bool prev_hrtf_act = playback->prev_bus_details ? playback->prev_bus_details->hrtf_active : false;
+					const float *prev_ir_l = playback->prev_bus_details ? playback->prev_bus_details->hrtf_ir_l : nullptr;
+					const float *prev_ir_r = playback->prev_bus_details ? playback->prev_bus_details->hrtf_ir_r : nullptr;
+					int prev_taps = playback->prev_bus_details ? playback->prev_bus_details->hrtf_taps : 0;
+					float prev_delay_l = playback->prev_bus_details ? playback->prev_bus_details->hrtf_delay_l : 0.0f;
+					float prev_delay_r = playback->prev_bus_details ? playback->prev_bus_details->hrtf_delay_r : 0.0f;
+					// Fade out to silence. This could be replaced with an exponential fadeout of the samples from the lookahead buffer for more punchy results.
+					_mix_step_for_channel(channel_buf, &buf[LOOKAHEAD_BUFFER_SIZE], prev_channel_vol, AudioFrame(0, 0), playback->attenuation_filter_cutoff_hz.get(), playback->highshelf_gain.get(), &playback->filter_process[channel_idx * 2], &playback->filter_process[channel_idx * 2 + 1], channel_idx, bus_details.hrtf_active, bus_details.hrtf_ir_l, bus_details.hrtf_ir_r, bus_details.hrtf_taps, bus_details.hrtf_delay_l, bus_details.hrtf_delay_r, prev_hrtf_act, prev_ir_l, prev_ir_r, prev_taps, prev_delay_l, prev_delay_r, playback->hrtf_history[idx]);
 				}
 			}
-			if (current_bus_idx != -1) {
-				// If we found a corresponding bus in the current bus assignments, we've already mixed to this bus.
-				continue;
-			}
-
-			for (int channel_idx = 0; channel_idx < channel_count; channel_idx++) {
-				AudioFrame *channel_buf = thread_get_channel_mix_buffer(bus_idx, channel_idx);
-				AudioFrame prev_channel_vol = playback->prev_bus_details->volume[idx][channel_idx];
-				bool prev_hrtf_act = playback->prev_bus_details ? playback->prev_bus_details->hrtf_active : false;
-				const float *prev_ir_l = playback->prev_bus_details ? playback->prev_bus_details->hrtf_ir_l : nullptr;
-				const float *prev_ir_r = playback->prev_bus_details ? playback->prev_bus_details->hrtf_ir_r : nullptr;
-				int prev_taps = playback->prev_bus_details ? playback->prev_bus_details->hrtf_taps : 0;
-				float prev_delay_l = playback->prev_bus_details ? playback->prev_bus_details->hrtf_delay_l : 0.0f;
-				float prev_delay_r = playback->prev_bus_details ? playback->prev_bus_details->hrtf_delay_r : 0.0f;
-				// Fade out to silence. This could be replaced with an exponential fadeout of the samples from the lookahead buffer for more punchy results.
-				_mix_step_for_channel(channel_buf, &buf[LOOKAHEAD_BUFFER_SIZE], prev_channel_vol, AudioFrame(0, 0), playback->attenuation_filter_cutoff_hz.get(), playback->highshelf_gain.get(), &playback->filter_process[channel_idx * 2], &playback->filter_process[channel_idx * 2 + 1], channel_idx, bus_details.hrtf_active, bus_details.hrtf_ir_l, bus_details.hrtf_ir_r, bus_details.hrtf_taps, bus_details.hrtf_delay_l, bus_details.hrtf_delay_r, prev_hrtf_act, prev_ir_l, prev_ir_r, prev_taps, prev_delay_l, prev_delay_r, playback->hrtf_history[idx]);
-			}
 		}
-	}
 
 		// Copy the bus details we mixed with to the previous bus details to maintain volume ramps.
 		if (playback->prev_bus_details) {
@@ -808,15 +809,9 @@ void AudioServer::_mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_sou
 						float sv_r2 = read_sample(pos_k2 - curr_d_r);
 						float sv_r3 = read_sample(pos_k3 - curr_d_r);
 
-						conv_l += p_hrtf_ir_l[k]     * sv_l0
-								+ p_hrtf_ir_l[k + 1] * sv_l1
-								+ p_hrtf_ir_l[k + 2] * sv_l2
-								+ p_hrtf_ir_l[k + 3] * sv_l3;
+						conv_l += p_hrtf_ir_l[k] * sv_l0 + p_hrtf_ir_l[k + 1] * sv_l1 + p_hrtf_ir_l[k + 2] * sv_l2 + p_hrtf_ir_l[k + 3] * sv_l3;
 
-						conv_r += p_hrtf_ir_r[k]     * sv_r0
-								+ p_hrtf_ir_r[k + 1] * sv_r1
-								+ p_hrtf_ir_r[k + 2] * sv_r2
-								+ p_hrtf_ir_r[k + 3] * sv_r3;
+						conv_r += p_hrtf_ir_r[k] * sv_r0 + p_hrtf_ir_r[k + 1] * sv_r1 + p_hrtf_ir_r[k + 2] * sv_r2 + p_hrtf_ir_r[k + 3] * sv_r3;
 					}
 					// Remainder taps
 					for (; k < taps; k++) {

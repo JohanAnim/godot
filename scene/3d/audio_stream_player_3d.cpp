@@ -176,7 +176,7 @@ AudioFrame AudioStreamPlayer3D::_calc_output_vol_stereo(const Vector3 &source_di
 			// Convert Godot coordinates (X-Right, Y-Up, -Z-Forward) to AES69 SOFA (X-Forward, Y-Left, Z-Up)
 			float sofa_x = -pos_norm.z;
 			float sofa_y = -pos_norm.x;
-			float sofa_z =  pos_norm.y;
+			float sofa_z = pos_norm.y;
 
 			int flen_raw = as->get_hrtf_filter_length();
 			// 2048 floats (~8KB stack) cubre cualquier SOFA real (KEMAR, IRCAM, custom)
@@ -191,7 +191,9 @@ AudioFrame AudioStreamPlayer3D::_calc_output_vol_stereo(const Vector3 &source_di
 			}
 
 			int flen = MIN(flen_raw, 256);
-			if (flen <= 0) flen = 256;
+			if (flen <= 0) {
+				flen = 256;
+			}
 
 			last_hrtf_active = true;
 			last_hrtf_taps = flen;
