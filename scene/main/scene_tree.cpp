@@ -254,12 +254,20 @@ void SceneTree::_process_accessibility_changes(DisplayServerEnums::WindowID p_wi
 	Vector<ObjectID> processed;
 	for (const ObjectID &id : accessibility_change_queue) {
 		Node *node = Object::cast_to<Node>(ObjectDB::get_instance(id));
-		if (!node || !node->get_non_popup_window() || !node->get_window()->is_visible()) {
+		if (!node || !node->is_inside_tree() || !node->get_window() || !node->get_window()->is_visible()) {
 			processed.push_back(id);
-			continue; // Invalid node, remove from list and skip.
-		} else if (node->get_non_popup_window()->get_window_id() != p_window_id) {
-			continue; // Another window, skip.
+			continue; // Invalid, unparented, or invisible node/window, remove from queue.
 		}
+
+		Window *non_popup_win = node->get_non_popup_window();
+		if (non_popup_win && non_popup_win->get_window_id() != p_window_id) {
+			// Belongs to a different active window. Check if that window still exists.
+			if (!DisplayServer::get_singleton()->window_get_attached_instance_id(non_popup_win->get_window_id()).is_valid()) {
+				processed.push_back(id); // Window no longer attached, clean up orphaned node.
+			}
+			continue; // Skip processing for this window pass.
+		}
+
 		node->notification(Node::NOTIFICATION_ACCESSIBILITY_UPDATE);
 		processed.push_back(id);
 	}
@@ -303,9 +311,13 @@ void SceneTree::_process_accessibility_changes(DisplayServerEnums::WindowID p_wi
 
 void SceneTree::_flush_accessibility_changes() {
 	if (is_accessibility_enabled()) {
+		if (accessibility_change_queue.is_empty() && !accessibility_force_update) {
+			return; // Fast path: 0% CPU overhead when accessibility tree is idle.
+		}
 		uint64_t time = OS::get_singleton()->get_ticks_msec();
 		if (!accessibility_force_update) {
-			if (time - accessibility_last_update < 1000 / accessibility_upd_per_sec) {
+			uint64_t rate = MAX(uint64_t(1), accessibility_upd_per_sec);
+			if (time - accessibility_last_update < 1000 / rate) {
 				return;
 			}
 		}
