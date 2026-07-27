@@ -30,9 +30,9 @@
 
 # Buildsystem
 bin
+*.gen.*
 # Exception: the KEMAR SOFA data header is generated but must be tracked
 !thirdparty/libmysofa/default_sofa.gen.h
-*.gen.*
 compile_commands.json
 platform/windows/godot_res.res
 
