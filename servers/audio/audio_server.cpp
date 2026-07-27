@@ -30,7 +30,7 @@
 
 #include "audio_server.h"
 
-#include "thirdparty/libmysofa/default_sofa.gen.h"
+#include <thirdparty/libmysofa/default_sofa.gen.h>
 
 #include "core/config/project_settings.h"
 #include "core/debugger/engine_debugger.h"
