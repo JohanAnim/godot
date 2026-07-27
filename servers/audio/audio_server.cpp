@@ -30,7 +30,7 @@
 
 #include "audio_server.h"
 
-#include "default_sofa.gen.h"
+#include "thirdparty/libmysofa/default_sofa.gen.h"
 
 #include "core/config/project_settings.h"
 #include "core/debugger/engine_debugger.h"
@@ -1773,7 +1773,7 @@ void AudioServer::init() {
 		}
 
 		if (!hrtf_easy_handle) {
-			hrtf_easy_handle = mysofa_open_data((const char *)default_kemar_sofa_data, sizeof(default_kemar_sofa_data), (float)get_mix_rate(), &hrtf_filter_length, &err);
+			hrtf_easy_handle = mysofa_open_data((const char *)default_kemar_sofa_data, default_kemar_sofa_data_size, (float)get_mix_rate(), &hrtf_filter_length, &err);
 		}
 
 		if (!hrtf_easy_handle || err != 0) {

@@ -18,6 +18,7 @@ env_libmysofa.Append(
 )
 
 sources = [
+    "default_sofa.cpp",
     "src/hrtf/cache.c",
     "src/hrtf/check.c",
     "src/hrtf/easy.c",
@@ -42,7 +43,4 @@ sources = [
 
 env_libmysofa.add_source_files(env.servers_sources, sources)
 
-env.Append(CPPPATH=[
-    "#thirdparty/libmysofa",
-    "#thirdparty/libmysofa/src/hrtf",
-])
+env.Append(CPPPATH=["#thirdparty/libmysofa/src/hrtf"])
