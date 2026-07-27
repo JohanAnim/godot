@@ -83,24 +83,8 @@ private:
 	uint64_t last_mix_count = -1;
 	bool force_update_panning = false;
 
-	enum HrtfMode {
-		HRTF_MODE_INHERIT,
-		HRTF_MODE_ENABLED,
-		HRTF_MODE_DISABLED,
-	};
-
-	HrtfMode hrtf_mode = HRTF_MODE_INHERIT;
-	bool hrtf_interpolation_bilinear = true;
-
-	bool last_hrtf_active = false;
-	float last_hrtf_ir_l[256] = {};
-	float last_hrtf_ir_r[256] = {};
-	int last_hrtf_taps = 0;
-	float last_hrtf_delay_l = 0.0f;
-	float last_hrtf_delay_r = 0.0f;
-
 	static void _calc_output_vol(const Vector3 &source_dir, real_t tightness, FixedVector<AudioFrame, VOLUME_VECTOR_SIZE> &output);
-	AudioFrame _calc_output_vol_stereo(const Vector3 &source_dir, real_t p_panning_strength);
+	static AudioFrame _calc_output_vol_stereo(const Vector3 &source_dir, real_t panning_strength);
 
 #ifndef PHYSICS_3D_DISABLED
 	void _calc_reverb_vol(Area3D *area, Vector3 listener_area_pos, const FixedVector<AudioFrame, VOLUME_VECTOR_SIZE> &direct_path_vol, FixedVector<AudioFrame, VOLUME_VECTOR_SIZE> &reverb_vol);
@@ -225,15 +209,6 @@ public:
 	void set_panning_strength(float p_panning_strength);
 	float get_panning_strength() const;
 
-	void set_hrtf_mode(HrtfMode p_mode);
-	HrtfMode get_hrtf_mode() const;
-
-	void set_hrtf_interpolation_bilinear(bool p_enable);
-	bool is_hrtf_interpolation_bilinear_enabled() const;
-
-	float get_hrtf_azimuth() const;
-	float get_hrtf_elevation() const;
-
 	bool has_stream_playback();
 	Ref<AudioStreamPlayback> get_stream_playback();
 
@@ -246,4 +221,3 @@ public:
 
 VARIANT_ENUM_CAST(AudioStreamPlayer3D::AttenuationModel)
 VARIANT_ENUM_CAST(AudioStreamPlayer3D::DopplerTracking)
-VARIANT_ENUM_CAST(AudioStreamPlayer3D::HrtfMode)

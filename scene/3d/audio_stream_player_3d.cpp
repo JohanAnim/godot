@@ -149,68 +149,12 @@ void AudioStreamPlayer3D::_calc_output_vol(const Vector3 &source_dir, real_t tig
 	}
 }
 
-#include <mysofa.h>
-
 // Set the volume to cosine of half horizontal the angle from the source to the left/right speaker direction ignoring elevation.
 // Then scale `cosx` so that greatest ratio of the speaker volumes is `1-panning_strength`.
 // See https://github.com/godotengine/godot/issues/103989 for evidence that this is the most standard implementation.
-AudioFrame AudioStreamPlayer3D::_calc_output_vol_stereo(const Vector3 &source_dir, real_t p_panning_strength) {
-	bool use_hrtf = false;
-	if (hrtf_mode == HRTF_MODE_ENABLED) {
-		use_hrtf = true;
-	} else if (hrtf_mode == HRTF_MODE_INHERIT) {
-		use_hrtf = (bool)GLOBAL_GET("audio/general/3d_hrtf_enabled");
-	}
-
-	if (use_hrtf) {
-		AudioServer *as = AudioServer::get_singleton();
-		struct MYSOFA_EASY *easy = as ? as->get_hrtf_easy_handle() : nullptr;
-		if (easy) {
-			Vector3 pos_norm = source_dir;
-			if (pos_norm.length_squared() < 0.0001f) {
-				pos_norm = Vector3(0, 0, -1); // Default forward
-			} else {
-				pos_norm.normalize();
-			}
-
-			// Convert Godot coordinates (X-Right, Y-Up, -Z-Forward) to AES69 SOFA (X-Forward, Y-Left, Z-Up)
-			float sofa_x = -pos_norm.z;
-			float sofa_y = -pos_norm.x;
-			float sofa_z = pos_norm.y;
-
-			int flen_raw = as->get_hrtf_filter_length();
-			// 2048 floats (~8KB stack) cubre cualquier SOFA real (KEMAR, IRCAM, custom)
-			float ir_l[2048];
-			float ir_r[2048];
-
-			float delay_l = 0.0f, delay_r = 0.0f;
-
-			{
-				MutexLock lock(as->get_hrtf_mutex());
-				mysofa_getfilter_float(easy, sofa_x, sofa_y, sofa_z, ir_l, ir_r, &delay_l, &delay_r);
-			}
-
-			int flen = MIN(flen_raw, 256);
-			if (flen <= 0) {
-				flen = 256;
-			}
-
-			last_hrtf_active = true;
-			last_hrtf_taps = flen;
-			last_hrtf_delay_l = delay_l;
-			last_hrtf_delay_r = delay_r;
-			for (int i = 0; i < flen; i++) {
-				last_hrtf_ir_l[i] = ir_l[i];
-				last_hrtf_ir_r[i] = ir_r[i];
-			}
-
-			return AudioFrame(1.0f, 1.0f);
-		}
-	}
-	last_hrtf_active = false;
-
+AudioFrame AudioStreamPlayer3D::_calc_output_vol_stereo(const Vector3 &source_dir, real_t panning_strength) {
 	double flatrad = sqrt(source_dir.x * source_dir.x + source_dir.z * source_dir.z);
-	double g = CLAMP((1.0 - p_panning_strength) * (1.0 - p_panning_strength), 0.0, 1.0);
+	double g = CLAMP((1.0 - panning_strength) * (1.0 - panning_strength), 0.0, 1.0);
 	double f = (1.0 - g) / (1.0 + g);
 	double cosx = CLAMP(source_dir.x / (flatrad == 0.0 ? 1.0 : flatrad), -1.0, 1.0);
 	double fcosx = cosx * f;
@@ -347,7 +291,7 @@ void AudioStreamPlayer3D::_notification(int p_what) {
 				internal->active.set();
 				HashMap<StringName, Vector<AudioFrame>> bus_map;
 				bus_map[_get_actual_bus()] = volume_vector;
-				AudioServer::get_singleton()->start_playback_stream(setplayback, bus_map, setplay.get(), actual_pitch_scale, linear_attenuation, attenuation_filter_cutoff_hz, last_hrtf_active, last_hrtf_ir_l, last_hrtf_ir_r, last_hrtf_taps, last_hrtf_delay_l, last_hrtf_delay_r);
+				AudioServer::get_singleton()->start_playback_stream(setplayback, bus_map, setplay.get(), actual_pitch_scale, linear_attenuation, attenuation_filter_cutoff_hz);
 				setplayback.unref();
 				setplay.set(-1);
 			}
@@ -441,7 +385,7 @@ Vector<AudioFrame> AudioStreamPlayer3D::_update_panning() {
 	output_volume_vector.resize(VOLUME_VECTOR_SIZE);
 	output_volume_vector.fill(AudioFrame(0, 0));
 
-	if ((!internal->active.is_set() && setplayback.is_null()) || internal->stream.is_null()) {
+	if (!internal->active.is_set() || internal->stream.is_null()) {
 		return output_volume_vector;
 	}
 
@@ -637,7 +581,7 @@ Vector<AudioFrame> AudioStreamPlayer3D::_update_panning() {
 
 	if (!skip_setting_volumes) {
 		for (Ref<AudioStreamPlayback> &playback : internal->stream_playbacks) {
-			AudioServer::get_singleton()->set_playback_bus_volumes_linear(playback, bus_volumes, last_hrtf_active, last_hrtf_ir_l, last_hrtf_ir_r, last_hrtf_taps, last_hrtf_delay_l, last_hrtf_delay_r);
+			AudioServer::get_singleton()->set_playback_bus_volumes_linear(playback, bus_volumes);
 		}
 
 		for (Ref<AudioStreamPlayback> &playback : internal->stream_playbacks) {
@@ -894,73 +838,6 @@ float AudioStreamPlayer3D::get_panning_strength() const {
 	return panning_strength;
 }
 
-void AudioStreamPlayer3D::set_hrtf_mode(HrtfMode p_mode) {
-	hrtf_mode = p_mode;
-	force_update_panning = true;
-}
-
-AudioStreamPlayer3D::HrtfMode AudioStreamPlayer3D::get_hrtf_mode() const {
-	return hrtf_mode;
-}
-
-void AudioStreamPlayer3D::set_hrtf_interpolation_bilinear(bool p_enable) {
-	hrtf_interpolation_bilinear = p_enable;
-	force_update_panning = true;
-}
-
-bool AudioStreamPlayer3D::is_hrtf_interpolation_bilinear_enabled() const {
-	return hrtf_interpolation_bilinear;
-}
-
-float AudioStreamPlayer3D::get_hrtf_azimuth() const {
-	Ref<World3D> world_3d = get_world_3d();
-	if (world_3d.is_null()) {
-		return 0.0f;
-	}
-	Camera3D *camera = get_viewport() ? get_viewport()->get_camera_3d() : nullptr;
-	Node3D *listener_node = camera;
-	if (camera && camera->get_viewport()) {
-		AudioListener3D *listener = camera->get_viewport()->get_audio_listener_3d();
-		if (listener) {
-			listener_node = listener;
-		}
-	}
-	if (!listener_node) {
-		return 0.0f;
-	}
-	Vector3 local_pos = listener_node->get_global_transform().orthonormalized().affine_inverse().xform(get_global_transform().origin);
-	if (local_pos.length_squared() < 0.0001f) {
-		return 0.0f;
-	}
-	float angle_rad = Math::atan2(local_pos.x, -local_pos.z);
-	return Math::rad_to_deg(angle_rad);
-}
-
-float AudioStreamPlayer3D::get_hrtf_elevation() const {
-	Ref<World3D> world_3d = get_world_3d();
-	if (world_3d.is_null()) {
-		return 0.0f;
-	}
-	Camera3D *camera = get_viewport() ? get_viewport()->get_camera_3d() : nullptr;
-	Node3D *listener_node = camera;
-	if (camera && camera->get_viewport()) {
-		AudioListener3D *listener = camera->get_viewport()->get_audio_listener_3d();
-		if (listener) {
-			listener_node = listener;
-		}
-	}
-	if (!listener_node) {
-		return 0.0f;
-	}
-	Vector3 local_pos = listener_node->get_global_transform().orthonormalized().affine_inverse().xform(get_global_transform().origin);
-	float dist = local_pos.length();
-	if (dist < 0.0001f) {
-		return 0.0f;
-	}
-	float elev_rad = Math::asin(CLAMP(local_pos.y / dist, -1.0f, 1.0f));
-	return Math::rad_to_deg(elev_rad);
-}
-
 AudioServer::PlaybackType AudioStreamPlayer3D::get_playback_type() const {
 	return internal->get_playback_type();
 }
@@ -1051,15 +928,6 @@ void AudioStreamPlayer3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_panning_strength", "panning_strength"), &AudioStreamPlayer3D::set_panning_strength);
 	ClassDB::bind_method(D_METHOD("get_panning_strength"), &AudioStreamPlayer3D::get_panning_strength);
 
-	ClassDB::bind_method(D_METHOD("set_hrtf_mode", "mode"), &AudioStreamPlayer3D::set_hrtf_mode);
-	ClassDB::bind_method(D_METHOD("get_hrtf_mode"), &AudioStreamPlayer3D::get_hrtf_mode);
-
-	ClassDB::bind_method(D_METHOD("set_hrtf_interpolation_bilinear", "enable"), &AudioStreamPlayer3D::set_hrtf_interpolation_bilinear);
-	ClassDB::bind_method(D_METHOD("is_hrtf_interpolation_bilinear_enabled"), &AudioStreamPlayer3D::is_hrtf_interpolation_bilinear_enabled);
-
-	ClassDB::bind_method(D_METHOD("get_hrtf_azimuth"), &AudioStreamPlayer3D::get_hrtf_azimuth);
-	ClassDB::bind_method(D_METHOD("get_hrtf_elevation"), &AudioStreamPlayer3D::get_hrtf_elevation);
-
 	ClassDB::bind_method(D_METHOD("has_stream_playback"), &AudioStreamPlayer3D::has_stream_playback);
 	ClassDB::bind_method(D_METHOD("get_stream_playback"), &AudioStreamPlayer3D::get_stream_playback);
 
@@ -1079,9 +947,6 @@ void AudioStreamPlayer3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_distance", PROPERTY_HINT_RANGE, "0,4096,0.01,or_greater,suffix:m"), "set_max_distance", "get_max_distance");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_polyphony", PROPERTY_HINT_NONE, ""), "set_max_polyphony", "get_max_polyphony");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "panning_strength", PROPERTY_HINT_RANGE, "0,3,0.01,or_greater"), "set_panning_strength", "get_panning_strength");
-	ADD_GROUP("HRTF", "hrtf_");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "hrtf_mode", PROPERTY_HINT_ENUM, "Inherit,Enabled,Disabled"), "set_hrtf_mode", "get_hrtf_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "hrtf_interpolation_bilinear"), "set_hrtf_interpolation_bilinear", "is_hrtf_interpolation_bilinear_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "bus", PROPERTY_HINT_ENUM, ""), "set_bus", "get_bus");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "area_mask", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_area_mask", "get_area_mask");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "playback_type", PROPERTY_HINT_ENUM, "Default,Stream,Sample"), "set_playback_type", "get_playback_type");
@@ -1103,10 +968,6 @@ void AudioStreamPlayer3D::_bind_methods() {
 	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_DISABLED);
 	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_IDLE_STEP);
 	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_PHYSICS_STEP);
-
-	BIND_ENUM_CONSTANT(HRTF_MODE_INHERIT);
-	BIND_ENUM_CONSTANT(HRTF_MODE_ENABLED);
-	BIND_ENUM_CONSTANT(HRTF_MODE_DISABLED);
 
 	ADD_SIGNAL(MethodInfo("finished"));
 }

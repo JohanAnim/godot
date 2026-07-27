@@ -272,12 +272,6 @@ private:
 		bool bus_active[MAX_BUSES_PER_PLAYBACK] = {};
 		StringName bus[MAX_BUSES_PER_PLAYBACK];
 		AudioFrame volume[MAX_BUSES_PER_PLAYBACK][MAX_CHANNELS_PER_BUS];
-		bool hrtf_active = false;
-		float hrtf_ir_l[256] = {};
-		float hrtf_ir_r[256] = {};
-		int hrtf_taps = 0;
-		float hrtf_delay_l = 0.0f;
-		float hrtf_delay_r = 0.0f;
 	};
 
 	struct AudioStreamPlaybackListNode {
@@ -302,7 +296,6 @@ private:
 		SafeNumeric<float> highshelf_gain;
 		SafeNumeric<float> attenuation_filter_cutoff_hz; // This isn't used unless highshelf_gain is nonzero.
 		AudioFilterSW::Processor filter_process[8];
-		AudioFrame hrtf_history[MAX_BUSES_PER_PLAYBACK][384] = {};
 		// Updating this ref after the list node is created breaks consistency guarantees, don't do it!
 		Ref<AudioStreamPlayback> stream_playback;
 		// Playback state determines the fate of a particular AudioStreamListNode during the mix step. Must be atomically replaced.
@@ -337,7 +330,7 @@ private:
 	void init_channels_and_buffers();
 
 	void _mix_step();
-	void _mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_source_buf, AudioFrame p_vol_start, AudioFrame p_vol_final, float p_attenuation_filter_cutoff_hz, float p_highshelf_gain, AudioFilterSW::Processor *p_processor_l, AudioFilterSW::Processor *p_processor_r, int p_channel_idx = 0, bool p_hrtf_active = false, const float *p_hrtf_ir_l = nullptr, const float *p_hrtf_ir_r = nullptr, int p_hrtf_taps = 0, float p_hrtf_delay_l = 0.0f, float p_hrtf_delay_r = 0.0f, bool p_prev_hrtf_active = false, const float *p_prev_hrtf_ir_l = nullptr, const float *p_prev_hrtf_ir_r = nullptr, int p_prev_hrtf_taps = 0, float p_prev_hrtf_delay_l = 0.0f, float p_prev_hrtf_delay_r = 0.0f, AudioFrame *p_history_buf = nullptr);
+	void _mix_step_for_channel(AudioFrame *p_out_buf, AudioFrame *p_source_buf, AudioFrame p_vol_start, AudioFrame p_vol_final, float p_attenuation_filter_cutoff_hz, float p_highshelf_gain, AudioFilterSW::Processor *p_processor_l, AudioFilterSW::Processor *p_processor_r);
 
 	// Should only be called on the main thread.
 	AudioStreamPlaybackListNode *_find_playback_list_node(Ref<AudioStreamPlayback> p_playback);
@@ -440,11 +433,11 @@ public:
 	// Convenience method.
 	void start_playback_stream(Ref<AudioStreamPlayback> p_playback, const StringName &p_bus, Vector<AudioFrame> p_volume_db_vector, float p_start_time = 0, float p_pitch_scale = 1);
 	// Expose all parameters.
-	void start_playback_stream(Ref<AudioStreamPlayback> p_playback, const HashMap<StringName, Vector<AudioFrame>> &p_bus_volumes, float p_start_time = 0, float p_pitch_scale = 1, float p_highshelf_gain = 0, float p_attenuation_cutoff_hz = 0, bool p_hrtf_active = false, const float *p_hrtf_ir_l = nullptr, const float *p_hrtf_ir_r = nullptr, int p_hrtf_taps = 0, float p_hrtf_delay_l = 0.0f, float p_hrtf_delay_r = 0.0f);
+	void start_playback_stream(Ref<AudioStreamPlayback> p_playback, const HashMap<StringName, Vector<AudioFrame>> &p_bus_volumes, float p_start_time = 0, float p_pitch_scale = 1, float p_highshelf_gain = 0, float p_attenuation_cutoff_hz = 0);
 	void stop_playback_stream(Ref<AudioStreamPlayback> p_playback);
 
 	void set_playback_bus_exclusive(Ref<AudioStreamPlayback> p_playback, const StringName &p_bus, Vector<AudioFrame> p_volumes);
-	void set_playback_bus_volumes_linear(Ref<AudioStreamPlayback> p_playback, const HashMap<StringName, Vector<AudioFrame>> &p_bus_volumes, bool p_hrtf_active = false, const float *p_hrtf_ir_l = nullptr, const float *p_hrtf_ir_r = nullptr, int p_hrtf_taps = 0, float p_hrtf_delay_l = 0.0f, float p_hrtf_delay_r = 0.0f);
+	void set_playback_bus_volumes_linear(Ref<AudioStreamPlayback> p_playback, const HashMap<StringName, Vector<AudioFrame>> &p_bus_volumes);
 	void set_playback_all_bus_volumes_linear(Ref<AudioStreamPlayback> p_playback, Vector<AudioFrame> p_volumes);
 	void set_playback_pitch_scale(Ref<AudioStreamPlayback> p_playback, float p_pitch_scale);
 	void set_playback_paused(Ref<AudioStreamPlayback> p_playback, bool p_paused);
@@ -526,15 +519,6 @@ public:
 	bool is_sample_playback_active(const Ref<AudioSamplePlayback> &p_playback);
 	double get_sample_playback_position(const Ref<AudioSamplePlayback> &p_playback);
 	void update_sample_playback_pitch_scale(const Ref<AudioSamplePlayback> &p_playback, float p_pitch_scale = 0.0f);
-
-	struct MYSOFA_EASY *hrtf_easy_handle = nullptr;
-	int hrtf_filter_length = 0;
-	BinaryMutex hrtf_mutex;
-
-public:
-	struct MYSOFA_EASY *get_hrtf_easy_handle() const { return hrtf_easy_handle; }
-	int get_hrtf_filter_length() const { return hrtf_filter_length; }
-	BinaryMutex &get_hrtf_mutex() { return hrtf_mutex; }
 
 	AudioServer();
 	virtual ~AudioServer();

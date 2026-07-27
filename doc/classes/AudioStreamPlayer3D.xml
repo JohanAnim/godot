@@ -13,18 +13,6 @@
 		<link title="Audio streams">$DOCS_URL/tutorials/audio/audio_streams.html</link>
 	</tutorials>
 	<methods>
-		<method name="get_hrtf_azimuth">
-			<return type="float" />
-			<description>
-				Returns the horizontal azimuth angle in degrees of this sound source relative to the active listener. Values range from [code]-180.0[/code] to [code]180.0[/code] degrees, where [code]0.0[/code] is directly in front, [code]90.0[/code] is to the right, [code]-90.0[/code] is to the left, and [code]180.0[/code] or [code]-180.0[/code] is directly behind. Useful for accessibility features and screen reader announcements.
-			</description>
-		</method>
-		<method name="get_hrtf_elevation">
-			<return type="float" />
-			<description>
-				Returns the vertical elevation angle in degrees of this sound source relative to the active listener. Values range from [code]-90.0[/code] to [code]90.0[/code] degrees, where [code]0.0[/code] is on the listener's horizon, [code]90.0[/code] is directly above, and [code]-90.0[/code] is directly below. Useful for accessibility features and screen reader announcements.
-			</description>
-		</method>
 		<method name="get_playback_position">
 			<return type="float" />
 			<description>
@@ -97,12 +85,6 @@
 		<member name="emission_angle_filter_attenuation_db" type="float" setter="set_emission_angle_filter_attenuation_db" getter="get_emission_angle_filter_attenuation_db" default="-12.0">
 			Attenuation factor used if listener is outside of [member emission_angle_degrees] and [member emission_angle_enabled] is set, in decibels.
 		</member>
-		<member name="hrtf_interpolation_bilinear" type="bool" setter="set_hrtf_interpolation_bilinear" getter="is_hrtf_interpolation_bilinear_enabled" default="false">
-			If [code]true[/code], spatial impulse response lookups for HRTF binaural rendering use bilinear spatial interpolation across neighboring direction vectors in the SOFA grid dataset.
-		</member>
-		<member name="hrtf_mode" type="int" setter="set_hrtf_mode" getter="get_hrtf_mode" enum="AudioStreamPlayer3D.HrtfMode" default="0">
-			Determines whether 3D Head-Related Transfer Function (HRTF) binaural spatialization is applied to this node. If set to [constant HRTF_MODE_INHERIT], the player inherits the global project setting [member ProjectSettings.audio/general/3d_hrtf_enabled].
-		</member>
 		<member name="max_db" type="float" setter="set_max_db" getter="get_max_db" default="3.0">
 			Sets the absolute maximum of the sound level, in decibels.
 		</member>
@@ -171,15 +153,6 @@
 		</constant>
 		<constant name="DOPPLER_TRACKING_PHYSICS_STEP" value="2" enum="DopplerTracking">
 			Executes doppler tracking during physics frames (see [constant Node.NOTIFICATION_INTERNAL_PHYSICS_PROCESS]).
-		</constant>
-		<constant name="HRTF_MODE_INHERIT" value="0" enum="HrtfMode">
-			Inherits the global project setting [member ProjectSettings.audio/general/3d_hrtf_enabled] to determine whether HRTF binaural processing is used for this stream player.
-		</constant>
-		<constant name="HRTF_MODE_ENABLED" value="1" enum="HrtfMode">
-			Forces native HRTF 3D binaural spatialization for this stream player, regardless of the global project setting.
-		</constant>
-		<constant name="HRTF_MODE_DISABLED" value="2" enum="HrtfMode">
-			Disables HRTF 3D binaural spatialization for this stream player, falling back to standard stereo amplitude panning.
 		</constant>
 	</constants>
 </class>
